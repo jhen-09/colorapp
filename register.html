@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>加入會員 | 色彩鑑定</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* 避免登入狀態檢查時表單閃爍 */
+    .app-container { opacity: 0; transition: opacity 0.2s ease-in-out; }
+  </style>
+</head>
+<body>
+
+  <button class="fixed-hamburger mobile-ui-only fade-in delay-1" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header fade-in delay-1">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <div class="content-wrapper">
+      
+      <h1 class="page-title fade-in delay-1">建立新帳戶</h1>
+      
+      <form id="registerForm" class="login-card fade-in delay-2">
+        
+        <div class="input-group">
+          <label>顯示名稱 (暱稱) / Display Name</label>
+          <input type="text" id="regName" name="username" placeholder="例如：Amy" required>
+        </div>
+
+        <div class="input-group">
+          <label>性別 / Gender</label>
+          <select id="regGender" name="gender" class="outfit-input" style="padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 100%;" required>
+            <option value="" disabled selected>請選擇您的性別</option>
+            <option value="female">女</option>
+            <option value="male">男</option>
+            <option value="other">不透露</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label>生日 / Birthday</label>
+          <input type="date" id="regBirthday" name="birthday" style="padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 100%; font-family: inherit;" required>
+        </div>
+
+        <div class="input-group">
+          <label>電子郵件 / Email</label>
+          <input type="email" id="regEmail" name="email" placeholder="example@email.com" required>
+        </div>
+        
+        <div class="input-group">
+          <label>設定密碼 / Password</label>
+          <input type="password" id="regPass" name="password" placeholder="至少包含 8 個字元" minlength="8" required>
+        </div>
+
+        <button type="submit" class="btn-submit">立即註冊</button>
+        
+        <div class="bottom-links">
+          已經有帳戶了？ <a href="newlogin.html">點此登入</a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <footer class="main-footer fade-in delay-3">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <script>
+    function toggleMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    }
+
+    // 檢查是否已經登入，如果已登入就自動跳轉到帳戶首頁
+    window.addEventListener('DOMContentLoaded', () => {
+      fetch('api_user.php')
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === 'success' || data.logged_in === true) {
+          window.location.href = 'newaccount.html';
+        } else {
+          const appContainer = document.querySelector('.app-container');
+          if(appContainer) appContainer.style.opacity = '1';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        const appContainer = document.querySelector('.app-container');
+        if(appContainer) appContainer.style.opacity = '1';
+      });
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+      e.preventDefault(); 
+      
+      const submitBtn = document.querySelector('.btn-submit');
+      const originText = submitBtn.textContent;
+      submitBtn.textContent = '處理中...';
+      submitBtn.disabled = true;
+
+      const formData = new FormData(this);
+
+      fetch('api_register.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        submitBtn.textContent = originText;
+        submitBtn.disabled = false;
+        
+        if(data.success === true) {
+          alert('註冊成功！系統將為您自動登入並轉至帳戶首頁。');
+          window.location.href = 'newaccount.html';
+        } else {
+          alert(data.message || '註冊失敗，請稍後再試。');
+        }
+      })
+      .catch(err => {
+        submitBtn.textContent = originText;
+        submitBtn.disabled = false;
+        alert('系統發生錯誤，請稍後再試。');
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>
+

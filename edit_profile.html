@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>編輯個人資料 | 色彩鑑定</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+</head>
+<body>
+
+  <button class="fixed-hamburger mobile-ui-only fade-in delay-1" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html" class="active">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header fade-in delay-1">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html" class="active">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <div class="content-wrapper">
+      
+      <h1 class="page-title fade-in delay-1">編輯個人資料</h1>
+      
+      <form id="editProfileForm" action="newaccount.html" class="edit-form-card fade-in delay-2">
+        
+        <div class="avatar-upload">
+          <div class="avatar-preview">
+            <span id="editAvatarChar">U</span>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <label>顯示名稱 / Display Name</label>
+          <input type="text" id="displayNameInput" value="User_1002" required>
+        </div>
+
+        <div class="input-row">
+          <label>電子郵件 / Email</label>
+          <input type="email" value="user1002@example.com" disabled style="opacity: 0.7; cursor: not-allowed;" title="Email cannot be changed directly">
+          <div class="desc">註冊 Email 暫時不開放修改</div>
+        </div>
+
+        <div class="input-row">
+          <label>個人簡介 / Bio (選填)</label>
+          <input type="text" id="bioInput" placeholder="簡單介紹一下自己吧...">
+        </div>
+
+        <div class="btn-group">
+          <a href="newaccount.html" class="btn-cancel">取消</a>
+          <button type="submit" class="btn-save">儲存修改</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <footer class="main-footer fade-in delay-3">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <script>
+    function toggleMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    }
+
+    // 載入時讀取現有資料
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedName = localStorage.getItem('appDisplayName');
+      const savedBio = localStorage.getItem('appBio');
+      if(savedName) {
+        document.getElementById('displayNameInput').value = savedName;
+        document.getElementById('editAvatarChar').textContent = savedName.charAt(0).toUpperCase();
+      }
+      if(savedBio) {
+        document.getElementById('bioInput').value = savedBio;
+      }
+    });
+
+    // 儲存表單資料
+    document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+      e.preventDefault(); // 阻擋預設跳轉
+      
+      const newName = document.getElementById('displayNameInput').value;
+      const newBio = document.getElementById('bioInput').value;
+      
+      // 存入瀏覽器 localStorage 中
+      localStorage.setItem('appDisplayName', newName);
+      localStorage.setItem('appBio', newBio);
+      
+      // 儲存成功後跳轉回帳戶頁面
+      window.location.href = 'newaccount.html';
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>登入 | 色彩鑑定</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* 避免登入狀態檢查時表單閃爍 */
+    .app-container { opacity: 0; transition: opacity 0.2s ease-in-out; }
+  </style>
+</head>
+<body>
+
+  <button class="fixed-hamburger mobile-ui-only fade-in delay-1" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html" class="active">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header fade-in delay-1">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html" class="active">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <div class="content-wrapper">
+      
+      <h1 class="page-title fade-in delay-1">歡迎回來</h1>
+      
+      <form id="loginForm" class="login-card fade-in delay-2">
+        <div class="input-group">
+          <label>電子郵件 / Email</label>
+          <input type="email" name="email" placeholder="example@email.com" required>
+        </div>
+        <div class="input-group">
+          <label>密碼 / Password</label>
+          <input type="password" name="password" placeholder="••••••••" required>
+        </div>
+        
+        <button type="submit" class="btn-submit">登入帳號</button>
+        
+        <div class="bottom-links">
+          尚未註冊？ <a href="register.html">立即加入會員</a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <footer class="main-footer fade-in delay-3">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <script>
+    function toggleMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    }
+
+    // 檢查是否已經登入，如果已登入就自動跳轉到帳戶首頁
+    window.addEventListener('DOMContentLoaded', () => {
+      fetch('api_user.php')
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === 'success' || data.logged_in === true) {
+          window.location.href = 'newaccount.html';
+        } else {
+          const appContainer = document.querySelector('.app-container');
+          if(appContainer) appContainer.style.opacity = '1';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        const appContainer = document.querySelector('.app-container');
+        if(appContainer) appContainer.style.opacity = '1';
+      });
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      
+      fetch('api_login.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.success === true) {
+          window.location.href = 'newaccount.html';
+        } else {
+          alert(data.message || '登入失敗，請檢查帳號或密碼。');
+        }
+      })
+      .catch(err => {
+        alert('系統發生錯誤，請稍後再試。');
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>
+

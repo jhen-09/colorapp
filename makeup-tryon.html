@@ -1,0 +1,2047 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>線上虛擬試妝 - 個人色彩鑑定 App</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* 試妝頁面專用樣式 */
+    .tryon-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .tryon-rec-column,
+    .tryon-preview-column,
+    .tryon-custom-column {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 平板與中型螢幕 (993px - 1199px) - 雙欄佈局 */
+    @media (min-width: 993px) and (max-width: 1199px) {
+      .tryon-container {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 24px;
+        min-height: calc(100vh - 180px);
+      }
+      
+      .tryon-preview-column {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        position: sticky;
+        top: 100px;
+        align-self: start;
+      }
+      
+      .tryon-rec-column {
+        grid-column: 2;
+        grid-row: 1;
+      }
+      
+      .tryon-custom-column {
+        grid-column: 2;
+        grid-row: 2;
+        margin-top: 8px;
+      }
+    }
+
+    /* 寬螢幕桌機版 (min-width: 1200px) - 三欄佈局 */
+    @media (min-width: 1200px) {
+      .app-container {
+        max-width: 1440px !important;
+      }
+
+      .header-container {
+        max-width: 1440px !important;
+      }
+
+      .tryon-container {
+        display: grid;
+        grid-template-columns: 1fr 1.15fr 1fr;
+        gap: 24px;
+        min-height: calc(100vh - 180px);
+        align-items: start;
+      }
+      
+      .tryon-rec-column {
+        position: sticky;
+        top: 100px;
+        align-self: start;
+      }
+      
+      .tryon-preview-column {
+        position: sticky;
+        top: 100px;
+        align-self: start;
+      }
+      
+      .tryon-custom-column {
+        /* 自行選擇顏色，高度較高，隨滾動條移動 */
+      }
+
+      /* 拓寬版面下的字體與按鈕放大 */
+      .swatch-name {
+        font-size: 13px;
+      }
+      
+      .swatch-brand {
+        font-size: 9px;
+      }
+      
+      .btn-compare {
+        font-size: 15px;
+        padding: 16px;
+      }
+
+      .btn-apply-destiny {
+        font-size: 15px;
+        padding: 14px;
+      }
+      
+      .tabs-nav .tab-btn {
+        font-size: 16px;
+      }
+
+      #userColorTitle {
+        font-size: 22px !important;
+      }
+
+      .user-color-header span {
+        font-size: 14px !important;
+      }
+
+      .occasion-btn {
+        font-size: 13px !important;
+      }
+
+      #destinyProductsSummary h5 {
+        font-size: 14px !important;
+      }
+    }
+
+    /* 桌機版返回按鈕置於左上角 */
+    @media (min-width: 993px) {
+      .content-wrapper {
+        position: relative;
+      }
+      .back-btn {
+        position: absolute;
+        top: 48px;
+        left: 48px;
+        margin-bottom: 0 !important;
+        z-index: 100;
+      }
+    }
+
+    /* 左側視訊/畫布區域 */
+    .preview-card {
+      position: relative;
+      background: rgba(255, 255, 255, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 24px;
+      overflow: hidden;
+      aspect-ratio: 3/4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    #webcam {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* 鏡像 */
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 1;
+    }
+
+    #fallbackImg {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      transition: opacity 0.5s ease;
+    }
+
+    /* 臉部定位線與遮罩 */
+    .face-guide-overlay {
+      position: absolute;
+      inset: 0;
+      border: 1.5px dashed rgba(255, 255, 255, 0.35);
+      border-radius: 50%;
+      width: 60%;
+      height: 65%;
+      top: 42%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0.6;
+      box-shadow: 0 0 0 9999px rgba(15, 12, 10, 0.15);
+      transition: opacity 0.3s;
+    }
+
+    .face-guide-overlay.hidden {
+      opacity: 0;
+    }
+
+    /* 虛擬試妝 SVG 疊加層 */
+    #makeupSvg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+      /* 若使用前鏡頭視訊，SVG 也需要水平翻轉對齊 */
+      transform: scaleX(1);
+      transition: transform 0.5s;
+    }
+
+    #makeupSvg.mirrored {
+      transform: scaleX(-1);
+    }
+
+    /* 底妝疊加層 */
+    .foundation-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+      opacity: 0;
+      transition: background-color 0.3s, opacity 0.3s;
+    }
+
+    /* 下方快照控制按鈕 */
+    .preview-actions {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+      padding: 0 20px;
+    }
+
+    .btn-glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      color: #2c2a29;
+      padding: 10px 18px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-glass:hover {
+      background: #fff;
+      transform: translateY(-2px);
+    }
+
+    .btn-glass.active {
+      background: var(--accent-main);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    /* 試妝頁面控制列 */
+
+    /* 個人色彩顯示與推薦推薦徽章 */
+    .user-color-card {
+      background: linear-gradient(135deg, rgba(242, 132, 130, 0.1) 0%, rgba(132, 165, 157, 0.1) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .user-color-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .user-color-badge {
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-apply-destiny {
+      background: linear-gradient(135deg, #f28482 0%, #e5989b 100%);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(242, 132, 130, 0.3);
+      width: 100%;
+      text-align: center;
+      letter-spacing: 0.1em;
+    }
+
+    .btn-apply-destiny:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(242, 132, 130, 0.4);
+    }
+
+    /* 彩妝類別 Tabs */
+    .tabs-nav {
+      display: flex;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      gap: 16px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 4px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      position: relative;
+      transition: color 0.3s;
+    }
+
+    .tab-btn.active {
+      color: var(--text-dark);
+      font-weight: 600;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: var(--accent-main);
+    }
+
+    /* 調整滑桿 */
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .styled-slider {
+      width: 100%;
+      height: 4px;
+      background: rgba(0, 0, 0, 0.08);
+      border-radius: 2px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .styled-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-main);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transition: transform 0.1s;
+    }
+
+    .styled-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* 色票面板 */
+    .color-picker-section {
+      display: none;
+    }
+
+    .color-picker-section.active {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .swatches-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .swatch-item {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.45);
+      border: 1.5px solid rgba(0, 0, 0, 0.04);
+      border-radius: 12px;
+      padding: 8px 12px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s;
+      min-width: 0;
+    }
+
+    .swatch-item:hover {
+      background: rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
+
+    .swatch-item.selected {
+      border-color: var(--accent-main);
+      background: white;
+      box-shadow: 0 4px 12px rgba(242, 132, 130, 0.1);
+    }
+
+    .swatch-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .swatch-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      text-align: left;
+    }
+
+    .swatch-brand {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--accent-main);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .swatch-name {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 推薦標籤 */
+    .rec-badge {
+      position: absolute;
+      top: -6px;
+      right: 4px;
+      background: #f28482;
+      color: white;
+      font-size: 7px;
+      padding: 1px 5px;
+      border-radius: 100px;
+      font-weight: 700;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* 質地切換鈕 */
+    .texture-selector {
+      display: flex;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.04);
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .texture-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.3s;
+      color: var(--text-muted);
+    }
+
+    .texture-btn.active {
+      background: white;
+      color: var(--text-dark);
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* 特徵校正微調面板 */
+    .calibration-panel {
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .calibration-panel.show {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .calibration-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .calibration-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-mini {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.1);
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-mini:hover {
+      background-color: rgba(0,0,0,0.04);
+    }
+
+    /* Before / After 大按鈕 */
+    .btn-compare {
+      width: 100%;
+      padding: 14px;
+      background: #2c2a29;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .btn-compare:hover {
+      background: #1a1918;
+    }
+
+    /* 場合切換按鈕樣式 */
+    .occasion-btn {
+      border: none;
+      background: none;
+      border-radius: 6px;
+      padding: 6px 2px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .occasion-btn.active {
+      background: white !important;
+      color: var(--text-dark) !important;
+      font-weight: 600 !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+  </style>
+</head>
+<body data-season="spring">
+
+  <!-- 手機選單 -->
+  <button class="fixed-hamburger mobile-ui-only" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html" class="active">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <!-- 電腦導覽列 -->
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html" class="active">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <div class="content-wrapper">
+      
+      <a href="index.html#main-app" class="back-btn fade-in delay-1">
+        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path></svg>
+        返回首頁
+      </a>
+
+      <h1 class="page-title fade-in delay-1" style="margin-bottom: 8px;">線上虛擬試妝</h1>
+      <p style="text-align:center; color:var(--text-muted); font-size:14px; margin-bottom: 32px;" class="fade-in delay-2">
+        即時預覽適合您鑑定結果的專屬彩妝色調
+      </p>
+
+      <div class="tryon-container fade-in delay-2">
+        
+        <!-- 左欄：場合妝容與推薦 -->
+        <div class="tryon-rec-column">
+          <!-- 個人色彩顯示 -->
+          <div class="user-color-card">
+            <div class="user-color-header">
+              <div>
+                <span style="font-size: 13px; color: var(--text-muted); display: block;">色彩鑑定結果</span>
+                <strong style="font-size: 18px; color: var(--text-dark);" id="userColorTitle">載入中...</strong>
+              </div>
+              <span class="user-color-badge" id="userColorBadge">--</span>
+            </div>
+            
+            <!-- 場合妝容選擇 -->
+            <div style="margin-top: 8px;">
+              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 6px;">選擇推薦妝容場合/風格：</span>
+              <div class="occasion-selector" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: rgba(0,0,0,0.04); padding: 4px; border-radius: 8px;">
+                <button class="occasion-btn active" onclick="switchOccasion('daily')">日常通勤</button>
+                <button class="occasion-btn" onclick="switchOccasion('japanese')">日雜溫柔</button>
+                <button class="occasion-btn" onclick="switchOccasion('wedding')">婚禮宴會</button>
+                <button class="occasion-btn" onclick="switchOccasion('korean')">韓系千金</button>
+                <button class="occasion-btn" onclick="switchOccasion('western')">歐美煙燻</button>
+                <button class="occasion-btn" onclick="switchOccasion('retro')">復古港風</button>
+                <button class="occasion-btn" onclick="switchOccasion('party')">派對閃耀</button>
+                <button class="occasion-btn" onclick="switchOccasion('clean')">低敏裸妝</button>
+              </div>
+            </div>
+
+            <button class="btn-apply-destiny" onclick="applyDestinyMakeup()" style="margin-top: 4px;">一鍵套用此場合妝容</button>
+            <button class="btn-glass" onclick="saveCurrentLook(this)" style="margin-top: 6px; width: 100%;">💾 儲存此妝容到我的帳戶</button>
+
+            <!-- 妝容組合包：唇×眼×頰 一鍵整套上妝 -->
+            <div style="margin-top: 14px;">
+              <h5 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-dark);">💄 專屬妝容組合 <span style="font-size:11px; color:var(--text-muted); font-weight:400;">一鍵套用整套</span></h5>
+              <div id="lookPresets" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <!-- 場合服裝搭配建議 -->
+            <div id="outfitTip" style="margin-top: 12px; padding: 14px 16px; background: rgba(255,255,255,0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.5);">
+              <h5 style="margin: 0 0 8px 0; font-size: 13px; color: var(--text-dark); display: flex; align-items: center; gap: 6px;">
+                <span>👗 本場合服裝搭配</span>
+              </h5>
+              <p id="outfitTipText" style="margin: 0; font-size: 13px; line-height: 1.7; color: var(--text-muted);">--</p>
+              <div id="outfitTipColors" style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
+              </div>
+            </div>
+
+            <!-- 專屬命定推薦清單 -->
+            <div id="destinyProductsSummary" style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.5);">
+              <h5 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-dark); display: flex; align-items: center; gap: 6px;">
+                <span>✨ 專屬命定彩妝推薦</span>
+              </h5>
+              <div style="display: flex; flex-direction: column; gap: 8px;" id="destinySummaryList">
+                <!-- 由 JS 動態注入 -->
+              </div>
+            </div>
+
+            <!-- 開發者切換器 -->
+            <div style="border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 12px; margin-top: 12px;">
+              <label for="mockApiSelector" style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">模擬切換其他色彩屬性：</label>
+              <select id="mockApiSelector" onchange="changeUserSeason(this.value)" style="width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); font-size: 12px; outline: none; background: white; color: var(--text-dark);">
+                <optgroup label="春季型">
+                  <option value="light-spring">亮春型</option>
+                  <option value="warm-spring">暖春型</option>
+                  <option value="bright-spring">豔春型</option>
+                </optgroup>
+                <optgroup label="夏季型">
+                  <option value="light-summer">亮夏型</option>
+                  <option value="cool-summer">冷夏型</option>
+                  <option value="soft-summer">柔夏型</option>
+                </optgroup>
+                <optgroup label="秋季型">
+                  <option value="soft-autumn">柔秋型</option>
+                  <option value="warm-autumn">暖秋型</option>
+                  <option value="deep-autumn">深秋型</option>
+                </optgroup>
+                <optgroup label="冬季型">
+                  <option value="bright-winter">豔冬型</option>
+                  <option value="cool-winter">冷冬型</option>
+                  <option value="deep-winter">深冬型</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 中欄：使用者上臉呈現結果 -->
+        <div class="tryon-preview-column">
+          <div class="preview-card" id="previewCard">
+            <!-- 底妝修飾 -->
+            <div class="foundation-overlay" id="foundationLayer"></div>
+            
+            <!-- 鏡頭視訊 -->
+            <video id="webcam" autoplay playsinline></video>
+            
+            <!-- 上傳/相機提示佔位區 -->
+            <div id="uploadPlaceholder" style="position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 24px; text-align: center; z-index: 1; background: rgba(255,255,255,0.25); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-radius: 24px;">
+              <div style="font-size: 40px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.06));">📷</div>
+              <strong style="font-size: 15px; color: var(--text-dark);">請開啟鏡頭或上傳照片</strong>
+              <p style="font-size: 12px; color: var(--text-muted); max-width: 220px; margin: 0; line-height: 1.5;">點擊下方按鈕開啟相機自拍，或從相簿導入/上傳您的檢測照片進行試妝</p>
+            </div>
+            
+            <!-- 備用模特兒照片 -->
+            <img id="fallbackImg" src="" alt="Uploaded Photo" style="display: none; opacity: 0;">
+
+            <!-- 五官偵測狀態提示 -->
+            <div id="fitStatus" style="position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:6; background:rgba(44,42,41,0.75); backdrop-filter:blur(6px); color:#fff; font-size:12px; letter-spacing:0.08em; padding:6px 16px; border-radius:100px; opacity:0; transition:opacity 0.4s; pointer-events:none; white-space:nowrap;"></div>
+            
+            <!-- 臉部導引虛線 -->
+            <div class="face-guide-overlay" id="faceGuide"></div>
+            
+            <!-- 試妝畫布疊加 SVG -->
+            <svg id="makeupSvg" viewBox="0 0 400 500">
+              <defs>
+                <!-- 唇彩高光漸層 -->
+                <linearGradient id="glossGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="white" stop-opacity="0.6" />
+                  <stop offset="35%" stop-color="white" stop-opacity="0.0" />
+                  <stop offset="100%" stop-color="white" stop-opacity="0.2" />
+                </linearGradient>
+              </defs>
+
+              <g id="transformGroup">
+                <!-- 腮紅 -->
+                <circle id="blushLeft" cx="152" cy="235" r="34" fill="transparent" style="mix-blend-mode: multiply; filter: blur(14px); transition: fill 0.3s, opacity 0.3s; opacity: 0;" />
+                <circle id="blushRight" cx="248" cy="235" r="34" fill="transparent" style="mix-blend-mode: multiply; filter: blur(14px); transition: fill 0.3s, opacity 0.3s; opacity: 0;" />
+                
+                <!-- 眼影 -->
+                <!-- 左眼影 -->
+                <path id="eyeshadowLeft" d="M 124 195 Q 152 178 168 198 Q 150 188 124 195 Z" fill="transparent" style="mix-blend-mode: multiply; filter: blur(6px); transition: fill 0.3s, opacity 0.3s; opacity: 0;" />
+                <!-- 右眼影 -->
+                <path id="eyeshadowRight" d="M 232 198 Q 248 178 276 195 Q 250 188 232 198 Z" fill="transparent" style="mix-blend-mode: multiply; filter: blur(6px); transition: fill 0.3s, opacity 0.3s; opacity: 0;" />
+
+                <!-- 唇彩底色 -->
+                <path id="lips" d="M 168 312 Q 185 302 200 304 Q 215 302 232 312 Q 212 328 200 328 Q 188 328 168 312 Z M 168 312 Q 200 310 232 312 Q 200 315 168 312 Z" fill="transparent" style="mix-blend-mode: multiply; filter: blur(1.5px); transition: fill 0.3s, opacity 0.3s; opacity: 0;" />
+                
+                <!-- 唇彩高光層 -->
+                <path id="lipsGloss" d="M 168 312 Q 185 302 200 304 Q 215 302 232 312 Q 212 328 200 328 Q 188 328 168 312 Z" fill="url(#glossGradient)" style="mix-blend-mode: screen; filter: blur(1.5px); transition: opacity 0.3s; opacity: 0; pointer-events: none;" />
+              </g>
+            </svg>
+
+            <!-- 預覽圖下方操作鈕 -->
+            <div class="preview-actions" style="flex-wrap: wrap; justify-content: center; gap: 8px;">
+              <button class="btn-glass" id="cameraToggleBtn" onclick="toggleCamera()">📷 開啟相機</button>
+              <button class="btn-glass" id="uploadPhotoBtn" onclick="triggerPhotoUpload()">🖼️ 從相簿上傳</button>
+              <button class="btn-glass" id="importPhotoBtn" onclick="importAnalyzedPhoto()" style="display: none;">✨ 導入檢測照片</button>
+              <input type="file" id="tryonPhotoUpload" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)">
+            </div>
+          </div>
+          
+          <!-- Before / After 對比大按鈕 -->
+          <button class="btn-compare" id="compareBtn"
+                  onmousedown="startCompare()" onmouseup="endCompare()"
+                  ontouchstart="startCompare()" ontouchend="endCompare()"
+                  style="margin-top: 4px;">
+            按住查看素顏 (Before / After)
+          </button>
+        </div>
+
+        <!-- 右欄：自行選擇顏色 -->
+        <div class="tryon-custom-column">
+          <!-- 分頁 Tabs -->
+          <nav class="tabs-nav">
+            <button class="tab-btn active" onclick="switchTab('lipstick')">唇彩</button>
+            <button class="tab-btn" onclick="switchTab('eyeshadow')">眼影</button>
+            <button class="tab-btn" onclick="switchTab('blush')">腮紅</button>
+            <button class="tab-btn" onclick="switchTab('foundation')">底妝</button>
+          </nav>
+
+          <!-- 唇彩面板 -->
+          <div class="color-picker-section active" id="lipstickSection">
+            <h4 style="margin: 0; font-size: 14px;">選擇唇膏色彩</h4>
+            <div class="swatches-grid" id="lipstickGrid">
+              <!-- Swatches will be generated by JS -->
+            </div>
+            
+            <h4 style="margin: 12px 0 0 0; font-size: 14px;">質感選擇</h4>
+            <div class="texture-selector">
+              <button class="texture-btn active" id="btnMatte" onclick="setLipTexture('matte')">質感霧面</button>
+              <button class="texture-btn" id="btnGlossy" onclick="setLipTexture('glossy')">水潤光澤</button>
+            </div>
+
+            <!-- 自訂色彩選擇 -->
+            <div class="custom-color-row" style="margin-top: 16px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 16px;">
+              <h5 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">自訂色彩選擇</h5>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="lipstickCustomPickerWrapper" class="color-picker-wrapper" style="position: relative; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.15); cursor: pointer; flex-shrink: 0; background: conic-gradient(red, yellow, green, cyan, blue, magenta, red); transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                  <input type="color" id="lipstickCustomPicker" value="#FF6F59" oninput="selectCustomColor('lipstick', this.value)" style="position: absolute; top: -5px; left: -5px; width: 46px; height: 46px; border: 0; padding: 0; cursor: pointer; opacity: 0;">
+                </div>
+                <span style="font-size: 12px; color: var(--text-dark);">點擊彩色球開啟調色盤自訂顏色</span>
+              </div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>顯色飽和度</span>
+                <span id="lipstickOpacityVal">60%</span>
+              </div>
+              <input type="range" class="styled-slider" id="lipstickOpacity" min="0" max="100" value="60" oninput="updateLipstickOpacity(this.value)">
+            </div>
+          </div>
+
+          <!-- 眼影面板 -->
+          <div class="color-picker-section" id="eyeshadowSection">
+            <h4 style="margin: 0; font-size: 14px;">選擇眼影色彩</h4>
+            <div class="swatches-grid" id="eyeshadowGrid">
+              <!-- Swatches generated by JS -->
+            </div>
+
+            <!-- 自訂色彩選擇 -->
+            <div class="custom-color-row" style="margin-top: 16px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 16px;">
+              <h5 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">自訂色彩選擇</h5>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="eyeshadowCustomPickerWrapper" class="color-picker-wrapper" style="position: relative; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.15); cursor: pointer; flex-shrink: 0; background: conic-gradient(red, yellow, green, cyan, blue, magenta, red); transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                  <input type="color" id="eyeshadowCustomPicker" value="#E5C2A4" oninput="selectCustomColor('eyeshadow', this.value)" style="position: absolute; top: -5px; left: -5px; width: 46px; height: 46px; border: 0; padding: 0; cursor: pointer; opacity: 0;">
+                </div>
+                <span style="font-size: 12px; color: var(--text-dark);">點擊彩色球開啟調色盤自訂顏色</span>
+              </div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>眼影顯色度</span>
+                <span id="eyeshadowOpacityVal">40%</span>
+              </div>
+              <input type="range" class="styled-slider" id="eyeshadowOpacity" min="0" max="100" value="40" oninput="updateEyeshadowOpacity(this.value)">
+            </div>
+          </div>
+
+          <!-- 腮紅面板 -->
+          <div class="color-picker-section" id="blushSection">
+            <h4 style="margin: 0; font-size: 14px;">選擇腮紅色彩</h4>
+            <div class="swatches-grid" id="blushGrid">
+              <!-- Swatches generated by JS -->
+            </div>
+
+            <!-- 自訂色彩選擇 -->
+            <div class="custom-color-row" style="margin-top: 16px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 16px;">
+              <h5 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">自訂色彩選擇</h5>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="blushCustomPickerWrapper" class="color-picker-wrapper" style="position: relative; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.15); cursor: pointer; flex-shrink: 0; background: conic-gradient(red, yellow, green, cyan, blue, magenta, red); transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                  <input type="color" id="blushCustomPicker" value="#FFAAA6" oninput="selectCustomColor('blush', this.value)" style="position: absolute; top: -5px; left: -5px; width: 46px; height: 46px; border: 0; padding: 0; cursor: pointer; opacity: 0;">
+                </div>
+                <span style="font-size: 12px; color: var(--text-dark);">點擊彩色球開啟調色盤自訂顏色</span>
+              </div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>腮紅顯色度</span>
+                <span id="blushOpacityVal">30%</span>
+              </div>
+              <input type="range" class="styled-slider" id="blushOpacity" min="0" max="100" value="30" oninput="updateBlushOpacity(this.value)">
+            </div>
+          </div>
+
+          <!-- 底妝面板 -->
+          <div class="color-picker-section" id="foundationSection">
+            <h4 style="margin: 0; font-size: 14px;">選擇粉底色調</h4>
+            <div class="swatches-grid" id="foundationGrid">
+              <!-- Swatches generated by JS -->
+            </div>
+
+            <!-- 自訂色彩選擇 -->
+            <div class="custom-color-row" style="margin-top: 16px; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 16px;">
+              <h5 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">自訂色彩選擇</h5>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="foundationCustomPickerWrapper" class="color-picker-wrapper" style="position: relative; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.15); cursor: pointer; flex-shrink: 0; background: conic-gradient(red, yellow, green, cyan, blue, magenta, red); transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                  <input type="color" id="foundationCustomPicker" value="#FFF9EB" oninput="selectCustomColor('foundation', this.value)" style="position: absolute; top: -5px; left: -5px; width: 46px; height: 46px; border: 0; padding: 0; cursor: pointer; opacity: 0;">
+                </div>
+                <span style="font-size: 12px; color: var(--text-dark);">點擊彩色球開啟調色盤自訂顏色</span>
+              </div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>底妝遮瑕修飾度</span>
+                <span id="foundationOpacityVal">25%</span>
+              </div>
+              <input type="range" class="styled-slider" id="foundationOpacity" min="0" max="100" value="25" oninput="updateFoundationOpacity(this.value)">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="main-footer">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script>
+    /* ============================================================
+     * 五官自動對位模組（MediaPipe FaceMesh，468 個臉部特徵點）
+     * 照片載入後偵測一次，把唇彩/眼影/腮紅的 SVG 形狀
+     * 重新繪製到照片中真實的五官位置上。
+     * 若 CDN 未載入或偵測不到臉 → 沿用原本的預設模板位置。
+     * ============================================================ */
+    let _faceMesh = null;
+    let _fitBusy = false;
+
+    // MediaPipe 特徵點索引（官方 FACEMESH 定義）
+    const LM = {
+      lipsOuter: [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185],
+      lipsInner: [78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81,80,191],
+      eyeTopL:   [33,246,161,160,159,158,157,173,133],   // 左眼上緣（畫面左側）
+      eyeTopR:   [263,466,388,387,386,385,384,398,362],  // 右眼上緣
+      faceL: 234, faceR: 454,        // 臉頰最寬兩點 → 臉寬
+      cheekL: 205, cheekR: 425,      // 腮紅中心
+      eyeHL: [159,145], eyeHR: [386,374], // 眼高參考（上緣/下緣）
+    };
+
+    function getFaceMeshInstance() {
+      if (_faceMesh) return _faceMesh;
+      if (typeof FaceMesh === 'undefined') return null; // CDN 未載入（離線環境）
+      _faceMesh = new FaceMesh({
+        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+      });
+      _faceMesh.setOptions({
+        staticImageMode: true,
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+      });
+      return _faceMesh;
+    }
+
+    function showFitStatus(msg, autoHide = true) {
+      const el = document.getElementById('fitStatus');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(window._fitStatusTimer);
+      if (autoHide) window._fitStatusTimer = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+    }
+
+    // 把特徵點座標串成平滑的封閉路徑（用二次貝茲取中點平滑）
+    function smoothClosedPath(pts) {
+      if (pts.length < 3) return '';
+      let dStr = `M ${((pts[0].x + pts[pts.length-1].x)/2).toFixed(1)} ${((pts[0].y + pts[pts.length-1].y)/2).toFixed(1)} `;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], n = pts[(i + 1) % pts.length];
+        dStr += `Q ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${((p.x+n.x)/2).toFixed(1)} ${((p.y+n.y)/2).toFixed(1)} `;
+      }
+      return dStr + 'Z';
+    }
+
+    async function fitMakeupToFace(imgEl) {
+      const mesh = getFaceMeshInstance();
+      if (!mesh) { showFitStatus('五官偵測模組未載入（需網路），使用預設位置'); return; }
+      if (_fitBusy || !imgEl.naturalWidth) return;
+      _fitBusy = true;
+      showFitStatus('AI 五官偵測中…', false);
+
+      try {
+        const results = await new Promise((resolve, reject) => {
+          mesh.onResults(resolve);
+          mesh.send({ image: imgEl }).catch(reject);
+        });
+        const lm = results.multiFaceLandmarks && results.multiFaceLandmarks[0];
+        if (!lm) {
+          showFitStatus('未偵測到臉部，使用預設位置');
+          return;
+        }
+        applyLandmarksToSvg(lm, imgEl);
+        showFitStatus('✓ 彩妝已對位到您的五官');
+      } catch (err) {
+        console.warn('FaceMesh 偵測失敗', err);
+        showFitStatus('五官偵測失敗，使用預設位置');
+      } finally {
+        _fitBusy = false;
+      }
+    }
+
+    function applyLandmarksToSvg(lm, imgEl) {
+      const svg = document.getElementById('makeupSvg');
+      const rect = svg.getBoundingClientRect();
+      const W = Math.max(1, Math.round(rect.width));
+      const H = Math.max(1, Math.round(rect.height));
+      // 讓 viewBox 與實際顯示區 1:1，座標才會準
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+      // 照片以 object-fit: cover 顯示 → 換算特徵點到畫面座標
+      const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+      const s = Math.max(W / iw, H / ih);
+      const offX = (W - iw * s) / 2, offY = (H - ih * s) / 2;
+      const P = i => ({ x: lm[i].x * iw * s + offX, y: lm[i].y * ih * s + offY });
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+      // --- 唇彩：外唇輪廓 + 內唇挖空（evenodd）---
+      const outer = LM.lipsOuter.map(P);
+      const inner = LM.lipsInner.map(P);
+      const lipsD = smoothClosedPath(outer) + ' ' + smoothClosedPath(inner);
+      const lips = document.getElementById('lips');
+      lips.setAttribute('d', lipsD);
+      lips.setAttribute('fill-rule', 'evenodd');
+      // 高光層只用外唇形
+      document.getElementById('lipsGloss').setAttribute('d', smoothClosedPath(outer));
+
+      // --- 眼影：沿眼睛上緣往上鋪一條帶狀 ---
+      function eyeshadowPath(topIdx, eyeHIdx) {
+        const top = topIdx.map(P);
+        const eyeH = dist(P(eyeHIdx[0]), P(eyeHIdx[1]));
+        const band = eyeH * 1.25;
+        const n = top.length;
+        // 兩端收窄（sin 曲線）：眼頭眼尾薄、眼中最厚，貼近真實暈染形狀
+        const upper = top.map((p, i) => {
+          const t = Math.pow(Math.sin(Math.PI * i / (n - 1)), 0.75);
+          return { x: p.x, y: p.y - band * Math.max(0.12, t) };
+        }).reverse();
+        return smoothClosedPath(top.concat(upper));
+      }
+      document.getElementById('eyeshadowLeft').setAttribute('d', eyeshadowPath(LM.eyeTopL, LM.eyeHL));
+      document.getElementById('eyeshadowRight').setAttribute('d', eyeshadowPath(LM.eyeTopR, LM.eyeHR));
+
+      // --- 腮紅：貼顴骨（臉頰點往眼尾方向微移），半徑縮小更自然 ---
+      const faceW = dist(P(LM.faceL), P(LM.faceR));
+      const r = Math.max(12, faceW * 0.105);
+      const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      const cl = lerp(P(LM.cheekL), P(33), 0.18);   // 往左眼尾提 18%
+      const cr = lerp(P(LM.cheekR), P(263), 0.18);  // 往右眼尾提 18%
+      const bl = document.getElementById('blushLeft');
+      const br = document.getElementById('blushRight');
+      bl.setAttribute('cx', cl.x.toFixed(1)); bl.setAttribute('cy', cl.y.toFixed(1)); bl.setAttribute('r', r.toFixed(1));
+      br.setAttribute('cx', cr.x.toFixed(1)); br.setAttribute('cy', cr.y.toFixed(1)); br.setAttribute('r', r.toFixed(1));
+    }
+
+    // 照片每次載入完成就自動對位（涵蓋：相簿上傳 / 導入檢測照片 / 重新整理還原）
+    document.addEventListener('DOMContentLoaded', () => {
+      const img = document.getElementById('fallbackImg');
+      if (img) {
+        img.addEventListener('load', () => fitMakeupToFace(img));
+        // 頁面載入時照片可能已還原完成（load 事件已錯過）
+        if (img.src && img.naturalWidth > 0) fitMakeupToFace(img);
+      }
+      renderOutfitTip(); // 初始化服裝搭配建議
+    });
+
+    /* ============================================================
+     * 場合 × 季型 服裝搭配建議（4 季 × 8 場合 = 32 組）
+     * ============================================================ */
+    const outfitPairing = {
+      spring: {
+        daily:    { text: "燕麥白襯衫＋淺卡其寬褲，用珊瑚色小物（絲巾、帆布包）點亮暖調氣色。", colors: ["#F5EFE0", "#D9C7A7", "#FA9F7A"] },
+        japanese: { text: "奶油色針織上衣＋米白傘裙，粉嫩蜜桃唇與同色系穿搭呼應，日雜感滿分。", colors: ["#FDF4CD", "#F5E6D3", "#FF9E9E"] },
+        wedding:  { text: "蜜桃或香檳色緞面洋裝＋金色細跟鞋與金飾，與金沙眼影同調最華麗。", colors: ["#FFC5B3", "#E9C48E", "#FDF4CD"] },
+        korean:   { text: "象牙白西裝外套＋直筒褲，配淺金耳環，乾淨的千金感靠淺暖色堆疊。", colors: ["#F7F3EA", "#E5C2A4", "#F7D060"] },
+        western:  { text: "焦糖色皮衣＋裸杏色內搭，率性暖調撐得起大地色煙燻眼妝。", colors: ["#C88B69", "#D69F7E", "#5B3C31"] },
+        retro:    { text: "珊瑚紅連身洋裝＋復古金框眼鏡與藤編包，與霧面珊瑚唇一氣呵成。", colors: ["#FF6F59", "#C88B69", "#F5E6D3"] },
+        party:    { text: "金屬光澤上衣或亮片裙，珊瑚紅唇是全場焦點，飾品選亮面黃金。", colors: ["#F7D060", "#FF6F59", "#FFF8E7"] },
+        clean:    { text: "白 T＋淺色直筒牛仔褲，裸妝配清爽淺色系，運動鞋收尾剛剛好。", colors: ["#FFFFFF", "#F5EFE0", "#A8C4DC"] }
+      },
+      summer: {
+        daily:    { text: "霧霾藍襯衫＋灰白直筒褲，玫瑰奶茶唇讓整體冷調不顯冷淡。", colors: ["#8E9EAB", "#E8E8EC", "#D27C88"] },
+        japanese: { text: "薰衣草紫針織＋白紗裙，櫻花色腮紅與柔霧粉紫眼影最溫柔。", colors: ["#CCA9DD", "#F5F3F7", "#ECA3C0"] },
+        wedding:  { text: "冰粉或淡紫紗質禮服＋珍珠、銀飾，冷調微醺腮紅提升氣色。", colors: ["#F0BEE3", "#E5E4E2", "#D66B75"] },
+        korean:   { text: "灰藍色西裝套裝＋銀色配件，俐落剪裁配冷粉唇色最有質感。", colors: ["#7EB6FF", "#B8C0C8", "#ECA3C0"] },
+        western:  { text: "煙灰色皮革外套＋深灰內搭，用莓果色唇妝做冷豔對比。", colors: ["#6E7B91", "#9D96A8", "#D66B75"] },
+        retro:    { text: "灰粉色立領上衣＋珍珠耳環，莫蘭迪色復古穿搭配玫瑰唇。", colors: ["#CCACB1", "#E5E4E2", "#D27C88"] },
+        party:    { text: "銀灰亮片洋裝＋白金飾品，冷粉紅唇在燈光下最顯白。", colors: ["#C0C8D8", "#E5E4E2", "#ECA3C0"] },
+        clean:    { text: "白襯衫＋淺灰裙裝，極簡冷調配裸妝，細銀鏈點到為止。", colors: ["#FFFFFF", "#D8DCE0", "#CCA9DD"] }
+      },
+      autumn: {
+        daily:    { text: "燕麥色毛衣＋卡其工裝褲，大地色系怎麼疊都對，配裸沙腮紅。", colors: ["#C2B280", "#9F9A7B", "#C58D83"] },
+        japanese: { text: "奶茶色大衣＋杏色針織疊穿，溫潤大地色最襯你的暖調膚色。", colors: ["#C4B1A7", "#D9C7A7", "#BD8D84"] },
+        wedding:  { text: "香檳金或磚紅緞面禮服＋古銅金飾，與金沙眼影相互輝映。", colors: ["#D7A643", "#B45B4B", "#E9C48E"] },
+        korean:   { text: "駝色長大衣＋深棕高領針織，冬季千金感的標準答案。", colors: ["#C2B280", "#5B3C31", "#D7A643"] },
+        western:  { text: "鐵鏽橘皮衣＋深棕短靴，濃郁暖色壓得住大地煙燻妝。", colors: ["#B9663B", "#5B3C31", "#C88B69"] },
+        retro:    { text: "楓葉紅毛衣＋復古格紋裙，港風濾鏡感配霧面磚紅唇。", colors: ["#B45B4B", "#7A8143", "#C2B280"] },
+        party:    { text: "古銅金亮面上衣＋深色窄裙，磚紅唇讓氣場全開。", colors: ["#975A28", "#B45B4B", "#D7A643"] },
+        clean:    { text: "米杏色襯衫＋橄欖綠長褲，低調大地色配裸妝最耐看。", colors: ["#E8DCC8", "#7A8143", "#C58D83"] }
+      },
+      winter: {
+        daily:    { text: "黑白極簡穿搭＋寶石藍單品點綴，高對比就是你的日常。", colors: ["#1A1A1A", "#FFFFFF", "#1A4EB1"] },
+        japanese: { text: "藏青針織＋純白長裙，冷色系的溫柔要靠乾淨的對比。", colors: ["#191970", "#FFFFFF", "#D43962"] },
+        wedding:  { text: "純白或銀白禮服＋白金鑽飾，正桃紅唇是全場最亮的存在。", colors: ["#FFFFFF", "#E5E4E2", "#D43962"] },
+        korean:   { text: "全黑西裝套裝＋銀色幾何耳環，俐落線條配冷紫眼影。", colors: ["#1A1A1A", "#B8C0C8", "#7D2894"] },
+        western:  { text: "黑色皮衣＋正紅唇，經典不敗的搖滾組合，眼妝可以更重。", colors: ["#1A1A1A", "#E32148", "#301934"] },
+        retro:    { text: "酒紅絲絨洋裝＋黑色復古手袋，港風女主角就是這個配方。", colors: ["#6A2C31", "#1A1A1A", "#E5E4E2"] },
+        party:    { text: "寶石藍亮片禮服＋銀飾，正紅唇在夜色裡無人能敵。", colors: ["#2752E1", "#E5E4E2", "#E32148"] },
+        clean:    { text: "白襯衫＋炭灰西裝褲，冷冽乾淨，一條細銀鏈就夠。", colors: ["#FFFFFF", "#3A3D42", "#1A4EB1"] }
+      }
+    };
+
+    /* ===== 妝容組合包：每個命定色型 3 套（裸感/柔光/氣場）=====
+       顏色取自該型的專屬彩妝色，濃淡與質地依妝感預設 */
+    const LOOK_PRESETS = [
+      { name: '日常裸感', desc: '低飽和薄透，上班上課都自然', lipI: 0, eyeI: 0, blushI: 0, lipOp: 0.45, lipTex: 'matte',  eyeOp: 0.28, blushOp: 0.22 },
+      { name: '約會柔光', desc: '水潤光澤感，氣色溫柔加倍',   lipI: 1, eyeI: 1, blushI: 1, lipOp: 0.60, lipTex: 'glossy', eyeOp: 0.40, blushOp: 0.34 },
+      { name: '氣場全開', desc: '飽和顯色，重要場合的主角妝', lipI: 2, eyeI: 2, blushI: 0, lipOp: 0.78, lipTex: 'matte',  eyeOp: 0.52, blushOp: 0.40 },
+    ];
+
+    function renderLookPresets() {
+      const wrap = document.getElementById('lookPresets');
+      if (!wrap) return;
+      const sets = typeMakeupExtras[currentUserSeason];
+      if (!sets) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = LOOK_PRESETS.map((p, i) => {
+        const lip = sets.lip[p.lipI][1], eye = sets.eye[p.eyeI][1], blush = sets.blush[p.blushI][1];
+        const dot = h => `<span style="width:18px; height:18px; border-radius:50%; background:${h}; border:1.5px solid rgba(255,255,255,0.9); box-shadow: inset 0 -2px 3px rgba(0,0,0,0.12);"></span>`;
+        return `
+          <button onclick="applyLookPreset(${i})" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; background:rgba(255,255,255,0.65); border:1px solid rgba(0,0,0,0.05); border-radius:14px; padding:10px 14px; cursor:pointer; transition:all 0.25s;"
+                  onmouseover="this.style.borderColor='var(--accent-main)'" onmouseout="this.style.borderColor='rgba(0,0,0,0.05)'">
+            <span>
+              <span style="font-size:13px; font-weight:600; color:var(--text-dark); display:block;">${p.name}</span>
+              <span style="font-size:11.5px; color:var(--text-muted);">${p.desc}</span>
+            </span>
+            <span style="display:flex; gap:5px; flex-shrink:0;">${dot(lip)}${dot(eye)}${dot(blush)}</span>
+          </button>`;
+      }).join('');
+    }
+
+    function applyLookPreset(i) {
+      const p = LOOK_PRESETS[i];
+      const sets = typeMakeupExtras[currentUserSeason];
+      if (!p || !sets) return;
+      selectedLipColor = sets.lip[p.lipI][1];
+      selectedLipOpacity = p.lipOp;
+      selectedLipTexture = p.lipTex;
+      selectedEyeColor = sets.eye[p.eyeI][1];
+      selectedEyeOpacity = p.eyeOp;
+      selectedBlushColor = sets.blush[p.blushI][1];
+      selectedBlushOpacity = p.blushOp;
+      applyLipstick(); applyEyeshadow(); applyBlush();
+      renderSwatches();
+    }
+
+    // 💾 儲存目前妝容組合到資料庫（makeup_looks 資料表）
+    function saveCurrentLook(btn) {
+      const form = new FormData();
+      form.append('action', 'save');
+      form.append('season_type', (typeof currentUserSeason !== 'undefined') ? currentUserSeason : '');
+      form.append('occasion', (typeof currentOccasion !== 'undefined') ? currentOccasion : '');
+      form.append('lip_hex', selectedLipColor || '');
+      form.append('lip_opacity', Math.round((selectedLipOpacity || 0) * 100));
+      form.append('lip_texture', selectedLipTexture || '');
+      form.append('eye_hex', selectedEyeColor || '');
+      form.append('eye_opacity', Math.round((selectedEyeOpacity || 0) * 100));
+      form.append('blush_hex', selectedBlushColor || '');
+      form.append('blush_opacity', Math.round((selectedBlushOpacity || 0) * 100));
+
+      const orig = btn.textContent;
+      btn.disabled = true;
+      fetch('api_looks.php', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(res => {
+          btn.textContent = res.success ? '✓ 已儲存！可至我的帳戶查看' : ('儲存失敗：' + (res.message || '請先登入'));
+          setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2200);
+        })
+        .catch(() => {
+          btn.textContent = '需在 XAMPP 環境並登入後使用';
+          setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2200);
+        });
+    }
+
+    function renderOutfitTip() {
+      const textEl = document.getElementById('outfitTipText');
+      const colorsEl = document.getElementById('outfitTipColors');
+      if (!textEl || !colorsEl) return;
+      // 讀取主程式的目前季型與場合（尚未初始化時使用預設值）
+      const seasonKey = (typeof seasonMapping !== 'undefined' && typeof currentUserSeason !== 'undefined' && seasonMapping[currentUserSeason])
+        ? seasonMapping[currentUserSeason].seasonName : 'summer';
+      const occ = (typeof currentOccasion !== 'undefined') ? currentOccasion : 'daily';
+      const tip = (outfitPairing[seasonKey] || {})[occ];
+      if (!tip) return;
+      textEl.textContent = tip.text;
+      colorsEl.innerHTML = '<span style="font-size:11px; color:var(--text-muted); letter-spacing:0.08em; margin-right:2px;">服裝色系</span>' +
+        tip.colors.map(hex => `<span style="width:22px; height:22px; border-radius:50%; background:${hex}; border:2px solid rgba(255,255,255,0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.12), inset 0 -2px 4px rgba(0,0,0,0.08); ${hex==='#FFFFFF' ? 'border-color: rgba(0,0,0,0.12);' : ''}"></span>`).join('');
+    }
+  </script>
+  <script>
+    // 側邊欄控制
+    function toggleMenu() {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    // ── 相機鏡頭控制 ──
+    const video = document.getElementById('webcam');
+    const fallbackImg = document.getElementById('fallbackImg');
+    const cameraToggleBtn = document.getElementById('cameraToggleBtn');
+    const makeupSvg = document.getElementById('makeupSvg');
+    let isCameraOn = false;
+    let cameraStream = null;
+
+    // 更新預覽畫面顯示狀態的輔助函式
+    function updatePreviewVisibility() {
+      const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+      const fallbackImg = document.getElementById('fallbackImg');
+      const webcam = document.getElementById('webcam');
+      const faceGuide = document.getElementById('faceGuide');
+      const makeupSvg = document.getElementById('makeupSvg');
+      
+      if (isCameraOn) {
+        uploadPlaceholder.style.display = 'none';
+        fallbackImg.style.display = 'none';
+        webcam.style.display = 'block';
+        faceGuide.classList.remove('hidden');
+        makeupSvg.style.display = 'block';
+      } else if (fallbackImg.src && fallbackImg.src !== window.location.href && !fallbackImg.src.endsWith('/') && !fallbackImg.src.endsWith('.html')) {
+        uploadPlaceholder.style.display = 'none';
+        fallbackImg.style.display = 'block';
+        fallbackImg.style.opacity = '1';
+        webcam.style.display = 'none';
+        faceGuide.classList.add('hidden'); // 對於上傳照片隱藏對齊線，避免干擾
+        makeupSvg.style.display = 'block';
+      } else {
+        uploadPlaceholder.style.display = 'flex';
+        fallbackImg.style.display = 'none';
+        webcam.style.display = 'none';
+        faceGuide.classList.add('hidden');
+        makeupSvg.style.display = 'none'; // 隱藏彩妝 SVG，避免懸空
+      }
+    }
+
+    // 關閉相機
+    function stopCamera() {
+      if (isCameraOn) {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(track => track.stop());
+        }
+        video.srcObject = null;
+        video.style.opacity = '0';
+        cameraToggleBtn.textContent = '📷 開啟相機';
+        cameraToggleBtn.classList.remove('active');
+        makeupSvg.classList.remove('mirrored');
+        isCameraOn = false;
+        
+        updatePreviewVisibility();
+      }
+    }
+
+    async function toggleCamera() {
+      if (isCameraOn) {
+        stopCamera();
+      } else {
+        // 開啟相機
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+            audio: false
+          });
+          cameraStream = stream;
+          video.srcObject = stream;
+          video.style.opacity = '1';
+          cameraToggleBtn.textContent = '📷 關閉相機';
+          cameraToggleBtn.classList.add('active');
+          makeupSvg.classList.add('mirrored'); // 鏡頭自拍需要水平翻轉對齊
+          isCameraOn = true;
+          
+          updatePreviewVisibility();
+        } catch (err) { 
+          console.error("相機存取失敗", err);
+          alert("無法啟動相機。請檢查權限或上傳相簿照片進行試妝。");
+        }
+      }
+    }
+
+    // 觸發從相簿上傳
+    function triggerPhotoUpload() {
+      document.getElementById('tryonPhotoUpload').click();
+    }
+
+    // 處理相簿照片上傳
+    function handlePhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        stopCamera();
+        fallbackImg.src = dataUrl;
+        
+        // 儲存為當前的試妝/檢測照片
+        localStorage.setItem('userCapturedPhoto', dataUrl); 
+        document.getElementById('importPhotoBtn').style.display = 'inline-flex';
+        
+        updatePreviewVisibility();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 導入剛剛色彩檢定使用的照片
+    function importAnalyzedPhoto() {
+      const savedPhoto = localStorage.getItem('userCapturedPhoto');
+      if (savedPhoto) {
+        stopCamera();
+        fallbackImg.src = savedPhoto;
+        
+        updatePreviewVisibility();
+      } else {
+        alert("找不到您剛才進行色彩檢定所使用的照片，請先進行檢定或上傳照片。");
+      }
+    }
+
+
+    // ── 彩妝狀態庫與顏色選項 ──
+    let selectedLipColor = '';
+    let selectedLipOpacity = 0.6;
+    let selectedLipTexture = 'matte'; // matte or glossy
+
+    let selectedEyeColor = '';
+    let selectedEyeOpacity = 0.4;
+
+    let selectedBlushColor = '';
+    let selectedBlushOpacity = 0.3;
+
+    let selectedFoundationColor = '';
+    let selectedFoundationOpacity = 0.25;
+
+    // 定義彩妝產品資料庫 (整合台灣常見/本土品牌：heme, Solone, 1028 等)
+    const lipstickPalette = [
+      { id: "lip-coral", brand: "heme", hex: "#FF6F59", name: "經典緞光唇膏 02 珊瑚", seasons: ["light-spring", "warm-spring", "bright-spring"] },
+      { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", seasons: ["light-summer", "cool-summer", "soft-summer"] },
+      { id: "lip-brick", brand: "heme", hex: "#9A3B26", name: "柔霧慕斯唇釉 04 復古楓葉", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] },
+      { id: "lip-berry", brand: "Solone", hex: "#7A1F3D", name: "經典極霧唇膏 208 冷艷酒紅", seasons: ["bright-winter", "cool-winter", "deep-winter"] },
+      { id: "lip-nude", brand: "Solone", hex: "#D69F7E", name: "柔霧慕斯唇釉 102 溫柔裸粉", seasons: [] },
+      { id: "lip-peach", brand: "heme", hex: "#FF9E9E", name: "極緻緞光唇膏 01 粉嫩蜜桃", seasons: [] },
+      { id: "lip-plum", brand: "heme", hex: "#6C2A4A", name: "極緻緞光唇膏 06 漿果暗紅", seasons: ["bright-winter", "cool-winter", "deep-winter"] },
+      { id: "lip-crimson", brand: "1028", hex: "#E63946", name: "唇迷心竅鏡光 05 經典正紅", seasons: ["bright-winter", "cool-winter", "deep-winter"] }
+    ];
+
+    const eyeshadowPalette = [
+      { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", seasons: ["light-spring", "warm-spring", "bright-spring"] },
+      { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", seasons: ["light-summer", "cool-summer", "soft-summer"] },
+      { id: "eye-orange", brand: "heme", hex: "#B07C56", name: "六色眼影盤 焦橙 Burnt Orange", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] },
+      { id: "eye-velvet", brand: "Solone", hex: "#684B73", name: "單色眼影 105 深邃醺紫", seasons: ["bright-winter", "cool-winter", "deep-winter"] },
+      { id: "eye-brown", brand: "heme", hex: "#A68064", name: "六色眼影盤 褐茶 Brown Tea", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] },
+      { id: "eye-rose", brand: "1028", hex: "#D59F9F", name: "飛我自我十色盤 玫瑰 Rose", seasons: ["light-summer", "cool-summer", "soft-summer"] },
+      { id: "eye-gold-sha", brand: "Solone", hex: "#E9C48E", name: "單色眼影 02 璀璨金沙", seasons: [] },
+      { id: "eye-twilight", brand: "1028", hex: "#C88B69", name: "飛我自我十色盤 暮光 Twilight", seasons: [] }
+    ];
+
+    const blushPalette = [
+      { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", seasons: ["light-spring", "warm-spring", "bright-spring"] },
+      { id: "blush-sakura", brand: "heme", hex: "#ECA3C0", name: "純色腮紅 10 清冷櫻花", seasons: ["light-summer", "cool-summer", "soft-summer"] },
+      { id: "blush-apricot", brand: "heme", hex: "#D88A68", name: "純色腮紅 08 肉桂甜杏", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] },
+      { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", seasons: ["bright-winter", "cool-winter", "deep-winter"] },
+      { id: "blush-nude", brand: "1028", hex: "#C58D83", name: "控油腮紅 02 日雜裸沙", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] },
+      { id: "blush-coral", brand: "heme", hex: "#E98177", name: "純色腮紅 15 活力珊瑚", seasons: ["light-spring", "warm-spring", "bright-spring"] },
+      { id: "blush-lavender", brand: "Solone", hex: "#D3B7D8", name: "蘋果肌腮紅 09 薰衣草紫", seasons: ["light-summer", "cool-summer", "soft-summer"] },
+      { id: "blush-terracotta", brand: "1028", hex: "#B86A5A", name: "控油腮紅 05 熟陶烤奶", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] }
+    ];
+
+    const foundationPalette = [
+      { id: "fd-warm-ivory", brand: "1028", hex: "#FFF9EB", name: "極上鏡粉底液 110 象牙暖白", seasons: ["light-spring", "warm-spring", "bright-spring"] },
+      { id: "fd-cool-ivory", brand: "Solone", hex: "#FCF5F7", name: "專屬柔霧粉底液 15 櫻花粉冷白", seasons: ["light-summer", "cool-summer", "soft-summer"] },
+      { id: "fd-natural-sand", brand: "1028", hex: "#F3E1CB", name: "極上鏡粉底液 120 自然沙色", seasons: ["soft-autumn", "warm-autumn", "deep-autumn"] },
+      { id: "fd-cool-porcelain", brand: "Solone", hex: "#FAFAFA", name: "專屬柔霧粉底液 10 瓷肌極白", seasons: ["bright-winter", "cool-winter", "deep-winter"] }
+    ];
+
+    /* ============================================================
+     * 12 型專屬彩妝擴充：每一個命定色類型都有自己的一組
+     * 唇彩 ×3、眼影 ×3、腮紅 ×2（標籤「專屬推薦」）
+     * ============================================================ */
+    const typeMakeupExtras = {
+      "light-spring":  { lip: [["蜜桃粉","#FFA98F"],["珊瑚糖","#FF8A80"],["杏桃奶","#F4A988"]], eye: [["香檳金","#F2DCB8"],["蜜桃棕","#E4B08E"],["淺杏","#EDC9A3"]], blush: [["蜜桃","#F7B7A3"],["杏粉","#F3AC9D"]] },
+      "warm-spring":   { lip: [["珊瑚橘","#FF7F50"],["磚粉","#E8846B"],["蜜柑","#F2803F"]], eye: [["金棕","#C89B62"],["蜜糖橘","#E0A96D"],["暖駝","#C9A176"]], blush: [["珊瑚","#F08E7D"],["橘粉","#EF9375"]] },
+      "bright-spring": { lip: [["亮桃紅","#FF4F7B"],["正珊瑚","#FF6347"],["西瓜紅","#FA5F55"]], eye: [["亮金","#E8C170"],["亮銅","#C97B4A"],["蜜金","#D9A05B"]], blush: [["亮珊瑚","#F4756B"],["桃橘","#F58873"]] },
+      "light-summer":  { lip: [["水粉","#F5A7B8"],["玫瑰乳","#E79FAC"],["淡莓","#D98695"]], eye: [["淡藕","#D8BCC7"],["灰粉","#CDB2BC"],["珍珠白","#EFE6EB"]], blush: [["嬰兒粉","#F3B8C4"],["淡玫瑰","#E7A9B8"]] },
+      "cool-summer":   { lip: [["玫瑰紅","#C74B6E"],["莓果粉","#C25E7F"],["冷粉","#E36D8D"]], eye: [["灰紫","#A793B4"],["冷玫瑰","#C39BAA"],["灰藍","#9AA7C1"]], blush: [["冷玫瑰","#DE8CA0"],["紫粉","#D493AC"]] },
+      "soft-summer":   { lip: [["豆沙","#B97A7A"],["乾燥玫瑰","#C08081"],["藕粉","#B78194"]], eye: [["煙灰玫瑰","#B49BA4"],["灰棕","#A8968F"],["霧紫灰","#9E93A6"]], blush: [["灰玫瑰","#CE9AA4"],["藕荷","#C49BA8"]] },
+      "soft-autumn":   { lip: [["奶茶裸","#B98873"],["裸豆沙","#B87E6E"],["陶土粉","#C08A6E"]], eye: [["燕麥棕","#C2A78D"],["灰橄欖","#A79B7E"],["奶咖","#B49781"]], blush: [["裸杏","#D3A18A"],["蜜裸","#CFA089"]] },
+      "warm-autumn":   { lip: [["磚紅","#A9503C"],["南瓜","#C25E33"],["楓糖","#A65E44"]], eye: [["銅棕","#A96F44"],["橄欖金","#9F8A4F"],["磚橘","#B0653E"]], blush: [["磚橘","#CD7B5C"],["赤陶","#C97F63"]] },
+      "deep-autumn":   { lip: [["深磚","#8C3B2E"],["酒磚","#7E3B30"],["可可紅","#833F35"]], eye: [["深咖","#6E4A32"],["墨綠","#4F5D46"],["古銅","#8A5A34"]], blush: [["深赤陶","#B26A4F"],["棗紅","#A9605A"]] },
+      "bright-winter": { lip: [["正紅","#D7263D"],["亮桃紫","#E0218A"],["櫻桃","#C21E56"]], eye: [["銀灰","#C7CBD4"],["冷紫","#8D7FB3"],["亮藍灰","#94A6C4"]], blush: [["亮桃紅","#E9739B"],["冷桃","#E4809E"]] },
+      "cool-winter":   { lip: [["藍調正紅","#C0304D"],["桃紅","#D33682"],["冷酒紅","#8E2C48"]], eye: [["冷灰紫","#7E718F"],["銀白","#DDE0E6"],["藍灰","#7C8AA0"]], blush: [["冷桃粉","#D97FA0"],["玫紅","#CC6E93"]] },
+      "deep-winter":   { lip: [["勃根地","#6D2E46"],["黑櫻桃","#5C2433"],["深酒紅","#722F37"]], eye: [["炭灰","#4C4A52"],["深紫","#4A3A5A"],["墨藍","#35405A"]], blush: [["梅子","#B06582"],["深玫","#A85E7C"]] },
+    };
+
+    // 展開成色票項目並附加到各分類（id 唯一、seasons 只掛該型）
+    (function expandTypePalettes() {
+      Object.entries(typeMakeupExtras).forEach(([type, sets]) => {
+        sets.lip.forEach(([name, hex], i) =>
+          lipstickPalette.push({ id: `xl-${type}-${i}`, brand: "專屬推薦", hex, name, seasons: [type] }));
+        sets.eye.forEach(([name, hex], i) =>
+          eyeshadowPalette.push({ id: `xe-${type}-${i}`, brand: "專屬推薦", hex, name, seasons: [type] }));
+        sets.blush.forEach(([name, hex], i) =>
+          blushPalette.push({ id: `xb-${type}-${i}`, brand: "專屬推薦", hex, name, seasons: [type] }));
+      });
+    })();
+
+
+    // 季節資訊定義
+    const seasonMapping = {
+      "light-spring": { label: "亮春型", badgeClass: "badge-spring", seasonName: "spring", badgeText: "亮春" },
+      "warm-spring": { label: "暖春型", badgeClass: "badge-spring", seasonName: "spring", badgeText: "暖春" },
+      "bright-spring": { label: "豔春型", badgeClass: "badge-spring", seasonName: "spring", badgeText: "豔春" },
+      "light-summer": { label: "亮夏型", badgeClass: "badge-summer", seasonName: "summer", badgeText: "亮夏" },
+      "cool-summer": { label: "冷夏型", badgeClass: "badge-summer", seasonName: "summer", badgeText: "冷夏" },
+      "soft-summer": { label: "柔夏型", badgeClass: "badge-summer", seasonName: "summer", badgeText: "柔夏" },
+      "soft-autumn": { label: "柔秋型", badgeClass: "badge-autumn", seasonName: "autumn", badgeText: "柔秋" },
+      "warm-autumn": { label: "暖秋型", badgeClass: "badge-autumn", seasonName: "autumn", badgeText: "暖秋" },
+      "deep-autumn": { label: "深秋型", badgeClass: "badge-autumn", seasonName: "autumn", badgeText: "深秋" },
+      "bright-winter": { label: "豔冬型", badgeClass: "badge-winter", seasonName: "winter", badgeText: "豔冬" },
+      "cool-winter": { label: "冷冬型", badgeClass: "badge-winter", seasonName: "winter", badgeText: "冷冬" },
+      "deep-winter": { label: "深冬型", badgeClass: "badge-winter", seasonName: "winter", badgeText: "深冬" }
+    };
+
+    let currentUserSeason = "cool-summer"; // 預設值
+    let currentOccasion = "daily"; // 預設為日常通勤
+
+    // 場合妝容對照表 (依據春、夏、秋、冬四大色系以及場合推薦對應彩妝)
+    const occasionMakeupMapping = {
+      "spring": {
+        "daily": {
+          lipstick: { id: "lip-coral", brand: "heme", hex: "#FF6F59", name: "經典緞光唇膏 02 珊瑚", texture: "matte", opacity: 45 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 30 },
+          blush: { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", opacity: 20 }
+        },
+        "japanese": {
+          lipstick: { id: "lip-peach", brand: "heme", hex: "#FF9E9E", name: "極緻緞光唇膏 01 粉嫩蜜桃", texture: "glossy", opacity: 55 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 35 },
+          blush: { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", opacity: 30 }
+        },
+        "wedding": {
+          lipstick: { id: "lip-peach", brand: "heme", hex: "#FF9E9E", name: "極緻緞光唇膏 01 粉嫩蜜桃", texture: "glossy", opacity: 75 },
+          eyeshadow: { id: "eye-gold-sha", brand: "Solone", hex: "#E9C48E", name: "單色眼影 02 璀璨金沙", opacity: 50 },
+          blush: { id: "blush-coral", brand: "heme", hex: "#E98177", name: "純色腮紅 15 活力珊瑚", opacity: 35 }
+        },
+        "korean": {
+          lipstick: { id: "lip-peach", brand: "heme", hex: "#FF9E9E", name: "極緻緞光唇膏 01 粉嫩蜜桃", texture: "glossy", opacity: 60 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 35 },
+          blush: { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", opacity: 25 }
+        },
+        "western": {
+          lipstick: { id: "lip-nude", brand: "Solone", hex: "#D69F7E", name: "柔霧慕斯唇釉 102 溫柔裸粉", texture: "matte", opacity: 70 },
+          eyeshadow: { id: "eye-twilight", brand: "1028", hex: "#C88B69", name: "飛我自我十色盤 暮光 Twilight", opacity: 65 },
+          blush: { id: "blush-nude", brand: "1028", hex: "#C58D83", name: "控油腮紅 02 日雜裸沙", opacity: 35 }
+        },
+        "retro": {
+          lipstick: { id: "lip-coral", brand: "heme", hex: "#FF6F59", name: "經典緞光唇膏 02 珊瑚", texture: "matte", opacity: 75 },
+          eyeshadow: { id: "eye-twilight", brand: "1028", hex: "#C88B69", name: "飛我自我十色盤 暮光 Twilight", opacity: 45 },
+          blush: { id: "blush-nude", brand: "1028", hex: "#C58D83", name: "控油腮紅 02 日雜裸沙", opacity: 25 }
+        },
+        "party": {
+          lipstick: { id: "lip-coral", brand: "heme", hex: "#FF6F59", name: "經典緞光唇膏 02 珊瑚", texture: "glossy", opacity: 80 },
+          eyeshadow: { id: "eye-gold-sha", brand: "Solone", hex: "#E9C48E", name: "單色眼影 02 璀璨金沙", opacity: 60 },
+          blush: { id: "blush-coral", brand: "heme", hex: "#E98177", name: "純色腮紅 15 活力珊瑚", opacity: 35 }
+        },
+        "clean": {
+          lipstick: { id: "lip-nude", brand: "Solone", hex: "#D69F7E", name: "柔霧慕斯唇釉 102 溫柔裸粉", texture: "matte", opacity: 35 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 15 },
+          blush: { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", opacity: 10 }
+        }
+      },
+      "summer": {
+        "daily": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 45 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 30 },
+          blush: { id: "blush-sakura", brand: "heme", hex: "#ECA3C0", name: "純色腮紅 10 清冷櫻花", opacity: 20 }
+        },
+        "japanese": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 55 },
+          eyeshadow: { id: "eye-rose", brand: "1028", hex: "#D59F9F", name: "飛我自我十色盤 玫瑰 Rose", opacity: 35 },
+          blush: { id: "blush-sakura", brand: "heme", hex: "#ECA3C0", name: "純色腮紅 10 清冷櫻花", opacity: 25 }
+        },
+        "wedding": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 70 },
+          eyeshadow: { id: "eye-rose", brand: "1028", hex: "#D59F9F", name: "飛我自我十色盤 玫瑰 Rose", opacity: 45 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 30 }
+        },
+        "korean": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 60 },
+          eyeshadow: { id: "eye-rose", brand: "1028", hex: "#D59F9F", name: "飛我自我十色盤 玫瑰 Rose", opacity: 35 },
+          blush: { id: "blush-sakura", brand: "heme", hex: "#ECA3C0", name: "純色腮紅 10 清冷櫻花", opacity: 25 }
+        },
+        "western": {
+          lipstick: { id: "lip-nude", brand: "Solone", hex: "#D69F7E", name: "柔霧慕斯唇釉 102 溫柔裸粉", texture: "matte", opacity: 60 },
+          eyeshadow: { id: "eye-velvet", brand: "Solone", hex: "#684B73", name: "單色眼影 105 深邃醺紫", opacity: 50 },
+          blush: { id: "blush-lavender", brand: "Solone", hex: "#D3B7D8", name: "蘋果肌腮紅 09 薰衣草紫", opacity: 30 }
+        },
+        "retro": {
+          lipstick: { id: "lip-plum", brand: "heme", hex: "#6C2A4A", name: "極緻緞光唇膏 06 漿果暗紅", texture: "matte", opacity: 70 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 40 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 25 }
+        },
+        "party": {
+          lipstick: { id: "lip-plum", brand: "heme", hex: "#6C2A4A", name: "極緻緞光唇膏 06 漿果暗紅", texture: "glossy", opacity: 80 },
+          eyeshadow: { id: "eye-velvet", brand: "Solone", hex: "#684B73", name: "單色眼影 105 深邃醺紫", opacity: 60 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 35 }
+        },
+        "clean": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 30 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 15 },
+          blush: { id: "blush-lavender", brand: "Solone", hex: "#D3B7D8", name: "蘋果肌腮紅 09 薰衣草紫", opacity: 10 }
+        }
+      },
+      "autumn": {
+        "daily": {
+          lipstick: { id: "lip-nude", brand: "Solone", hex: "#D69F7E", name: "柔霧慕斯唇釉 102 溫柔裸粉", texture: "matte", opacity: 55 },
+          eyeshadow: { id: "eye-brown", brand: "heme", hex: "#A68064", name: "六色眼影盤 褐茶 Brown Tea", opacity: 35 },
+          blush: { id: "blush-nude", brand: "1028", hex: "#C58D83", name: "控油腮紅 02 日雜裸沙", opacity: 25 }
+        },
+        "japanese": {
+          lipstick: { id: "lip-coral", brand: "heme", hex: "#FF6F59", name: "經典緞光唇膏 02 珊瑚", texture: "glossy", opacity: 55 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 35 },
+          blush: { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", opacity: 25 }
+        },
+        "wedding": {
+          lipstick: { id: "lip-brick", brand: "heme", hex: "#9A3B26", name: "柔霧慕斯唇釉 04 復古楓葉", texture: "matte", opacity: 75 },
+          eyeshadow: { id: "eye-orange", brand: "heme", hex: "#B07C56", name: "六色眼影盤 焦橙 Burnt Orange", opacity: 50 },
+          blush: { id: "blush-apricot", brand: "heme", hex: "#D88A68", name: "純色腮紅 08 肉桂甜杏", opacity: 35 }
+        },
+        "korean": {
+          lipstick: { id: "lip-coral", brand: "heme", hex: "#FF6F59", name: "經典緞光唇膏 02 珊瑚", texture: "glossy", opacity: 60 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 30 },
+          blush: { id: "blush-peach", brand: "heme", hex: "#FCA495", name: "純色腮紅 01 晨曦蜜桃", opacity: 25 }
+        },
+        "western": {
+          lipstick: { id: "lip-brick", brand: "heme", hex: "#9A3B26", name: "柔霧慕斯唇釉 04 復古楓葉", texture: "matte", opacity: 80 },
+          eyeshadow: { id: "eye-orange", brand: "heme", hex: "#B07C56", name: "六色眼影盤 焦橙 Burnt Orange", opacity: 60 },
+          blush: { id: "blush-terracotta", brand: "1028", hex: "#B86A5A", name: "控油腮紅 05 熟陶烤奶", opacity: 40 }
+        },
+        "retro": {
+          lipstick: { id: "lip-brick", brand: "heme", hex: "#9A3B26", name: "柔霧慕斯唇釉 04 復古楓葉", texture: "matte", opacity: 80 },
+          eyeshadow: { id: "eye-brown", brand: "heme", hex: "#A68064", name: "六色眼影盤 褐茶 Brown Tea", opacity: 50 },
+          blush: { id: "blush-nude", brand: "1028", hex: "#C58D83", name: "控油腮紅 02 日雜裸沙", opacity: 30 }
+        },
+        "party": {
+          lipstick: { id: "lip-brick", brand: "heme", hex: "#9A3B26", name: "柔霧慕斯唇釉 04 復古楓葉", texture: "matte", opacity: 85 },
+          eyeshadow: { id: "eye-orange", brand: "heme", hex: "#B07C56", name: "六色眼影盤 焦橙 Burnt Orange", opacity: 65 },
+          blush: { id: "blush-terracotta", brand: "1028", hex: "#B86A5A", name: "控油腮紅 05 熟陶烤奶", opacity: 40 }
+        },
+        "clean": {
+          lipstick: { id: "lip-nude", brand: "Solone", hex: "#D69F7E", name: "柔霧慕斯唇釉 102 溫柔裸粉", texture: "matte", opacity: 35 },
+          eyeshadow: { id: "eye-gold", brand: "heme", hex: "#E5C2A4", name: "六色眼影盤 燕麥 Oat", opacity: 15 },
+          blush: { id: "blush-nude", brand: "1028", hex: "#C58D83", name: "控油腮紅 02 日雜裸沙", opacity: 10 }
+        }
+      },
+      "winter": {
+        "daily": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 50 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 35 },
+          blush: { id: "blush-lavender", brand: "Solone", hex: "#D3B7D8", name: "蘋果肌腮紅 09 薰衣草紫", opacity: 25 }
+        },
+        "japanese": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 60 },
+          eyeshadow: { id: "eye-rose", brand: "1028", hex: "#D59F9F", name: "飛我自我十色盤 玫瑰 Rose", opacity: 35 },
+          blush: { id: "blush-sakura", brand: "heme", hex: "#ECA3C0", name: "純色腮紅 10 清冷櫻花", opacity: 25 }
+        },
+        "wedding": {
+          lipstick: { id: "lip-crimson", brand: "1028", hex: "#E63946", name: "唇迷心竅鏡光 05 經典正紅", texture: "glossy", opacity: 75 },
+          eyeshadow: { id: "eye-rose", brand: "1028", hex: "#D59F9F", name: "飛我自我十色盤 玫瑰 Rose", opacity: 45 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 35 }
+        },
+        "korean": {
+          lipstick: { id: "lip-plum", brand: "heme", hex: "#6C2A4A", name: "極緻緞光唇膏 06 漿果暗紅", texture: "glossy", opacity: 60 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 40 },
+          blush: { id: "blush-sakura", brand: "heme", hex: "#ECA3C0", name: "純色腮紅 10 清冷櫻花", opacity: 30 }
+        },
+        "western": {
+          lipstick: { id: "lip-berry", brand: "Solone", hex: "#7A1F3D", name: "經典極霧唇膏 208 冷艷酒紅", texture: "matte", opacity: 80 },
+          eyeshadow: { id: "eye-velvet", brand: "Solone", hex: "#684B73", name: "單色眼影 105 深邃醺紫", opacity: 60 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 40 }
+        },
+        "retro": {
+          lipstick: { id: "lip-berry", brand: "Solone", hex: "#7A1F3D", name: "經典極霧唇膏 208 冷艷酒紅", texture: "matte", opacity: 80 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 40 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 30 }
+        },
+        "party": {
+          lipstick: { id: "lip-crimson", brand: "1028", hex: "#E63946", name: "唇迷心竅鏡光 05 經典正紅", texture: "glossy", opacity: 85 },
+          eyeshadow: { id: "eye-velvet", brand: "Solone", hex: "#684B73", name: "單色眼影 105 深邃醺紫", opacity: 65 },
+          blush: { id: "blush-plum", brand: "Solone", hex: "#D66B75", name: "蘋果肌腮紅 03 冷調微醺", opacity: 45 }
+        },
+        "clean": {
+          lipstick: { id: "lip-rose", brand: "1028", hex: "#D27C88", name: "唇迷心竅鏡光 11 玫瑰奶茶", texture: "glossy", opacity: 30 },
+          eyeshadow: { id: "eye-mauve", brand: "Solone", hex: "#CCA9DD", name: "單色眼影 82 柔霧粉紫", opacity: 15 },
+          blush: { id: "blush-lavender", brand: "Solone", hex: "#D3B7D8", name: "蘋果肌腮紅 09 薰衣草紫", opacity: 10 }
+        }
+      }
+    };
+
+    // ── 初始化讀取 localStorage ──
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedSeason = localStorage.getItem('userColorType');
+      if (savedSeason && seasonMapping[savedSeason]) {
+        currentUserSeason = savedSeason; 
+      }
+      
+      // 設定切換器的值
+      document.getElementById('mockApiSelector').value = currentUserSeason;
+      
+      // 檢查是否有儲存的色彩檢定照片，如果有就自動載入並顯示導入按鈕
+      const savedPhoto = localStorage.getItem('userCapturedPhoto');
+      if (savedPhoto) {
+        fallbackImg.src = savedPhoto;
+        document.getElementById('importPhotoBtn').style.display = 'inline-flex';
+      }
+      
+      // 更新預覽顯示狀態
+      updatePreviewVisibility();
+      
+      // 更新顯示與色彩推薦選項
+      updateSeasonUI();
+      // 直接套用命定妝容色彩至畫面
+      applyDestinyMakeup();
+    });
+
+    // 模擬切換個人色彩屬性
+    function changeUserSeason(seasonId) {
+      currentUserSeason = seasonId;
+      localStorage.setItem('userColorType', seasonId);
+      updateSeasonUI();
+      // 切換後直接套用新命定妝容色彩至畫面
+      applyDestinyMakeup();
+    }
+
+    // 場合切換處理
+    function switchOccasion(occ) {
+      currentOccasion = occ;
+      
+      const buttons = document.querySelectorAll('.occasion-btn');
+      buttons.forEach(btn => {
+        const onclickAttr = btn.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(occ)) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      
+      // 更新推薦清單並自動套用妝容
+      updateSeasonUI();
+      applyDestinyMakeup();
+      renderOutfitTip(); // 同步更新服裝搭配建議
+    }
+
+    // 更新個人色彩標章並重繪色票列表（標註推薦色彩）
+    function updateSeasonUI() {
+      const info = seasonMapping[currentUserSeason];
+      
+      const title = document.getElementById('userColorTitle');
+      const badge = document.getElementById('userColorBadge');
+      
+      title.textContent = info.label;
+      badge.textContent = info.badgeText; // Use the direct badgeText property
+      
+      // 根據 badgeClass 渲染顏色
+      badge.className = "user-color-badge";
+      if (info.badgeClass === "badge-spring") {
+        badge.style.backgroundColor = "#f28482";
+        document.body.setAttribute('data-season', 'spring');
+      } else if (info.badgeClass === "badge-summer") {
+        badge.style.backgroundColor = "#84a59d";
+        document.body.setAttribute('data-season', 'summer');
+      } else if (info.badgeClass === "badge-autumn") {
+        badge.style.backgroundColor = "#f6bd60";
+        document.body.setAttribute('data-season', 'autumn');
+      } else if (info.badgeClass === "badge-winter") {
+        badge.style.backgroundColor = "#4A5D8A";
+        document.body.setAttribute('data-season', 'winter');
+      }
+
+      // 渲染專屬命定彩妝推薦清單 (排除底妝推薦，改為場合推薦)
+      const userSeasonName = seasonMapping[currentUserSeason].seasonName;
+      const look = occasionMakeupMapping[userSeasonName][currentOccasion];
+
+      const summaryList = document.getElementById('destinySummaryList');
+      let summaryHtml = '';
+      
+      const categories = [
+        { label: '唇彩', item: look.lipstick },
+        { label: '眼影', item: look.eyeshadow },
+        { label: '腮紅', item: look.blush }
+      ];
+      
+      categories.forEach(cat => {
+        if (cat.item) {
+          summaryHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; background: rgba(255,255,255,0.75); padding: 8px 12px; border-radius: 10px; border: 1.5px solid rgba(0, 0, 0, 0.02); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);">
+              <span style="font-weight: 600; color: var(--text-dark);">${cat.label}：<span style="color: var(--accent-main); font-weight: 700; font-size: 11px; text-transform: uppercase;">[${cat.item.brand}]</span> ${cat.item.name}</span>
+              <div style="width: 18px; height: 18px; border-radius: 50%; background-color: ${cat.item.hex}; border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);"></div>
+            </div>
+          `;
+        } else {
+          summaryHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; background: rgba(255,255,255,0.75); padding: 8px 12px; border-radius: 10px; border: 1.5px solid rgba(0, 0, 0, 0.02); color: var(--text-muted);">
+              <span>${cat.label}：未找到推薦色彩</span>
+            </div>
+          `;
+        }
+      });
+      summaryList.innerHTML = summaryHtml;
+
+      // 重繪色票
+      renderSwatches();
+      if (typeof renderOutfitTip === 'function') renderOutfitTip(); // 季型變更時同步服裝建議
+      if (typeof renderLookPresets === 'function') renderLookPresets(); // 同步妝容組合包
+    }
+
+    // ── 色票渲染 ──
+    function renderSwatches() {
+      // 1. 唇彩
+      renderSectionSwatches('lipstickGrid', lipstickPalette, 'lipstick');
+      // 2. 眼影
+      renderSectionSwatches('eyeshadowGrid', eyeshadowPalette, 'eyeshadow');
+      // 3. 腮紅
+      renderSectionSwatches('blushGrid', blushPalette, 'blush');
+      // 4. 底妝
+      renderSectionSwatches('foundationGrid', foundationPalette, 'foundation');
+    }
+
+    function renderSectionSwatches(gridId, palette, category) {
+      const grid = document.getElementById(gridId);
+
+      // 只顯示符合使用者檢測季型的顏色（無符合項時退回全部，避免空白）
+      const filtered = palette.filter(item => item.seasons.includes(currentUserSeason));
+      const list = filtered.length > 0 ? filtered : palette;
+
+      const html = list.map(item => {
+        const isRecommended = item.seasons.includes(currentUserSeason);
+        const isSelected = (category === 'lipstick' && selectedLipColor === item.hex) ||
+                           (category === 'eyeshadow' && selectedEyeColor === item.hex) ||
+                           (category === 'blush' && selectedBlushColor === item.hex) ||
+                           (category === 'foundation' && selectedFoundationColor === item.hex);
+        
+        return `
+          <div class="swatch-item ${isSelected ? 'selected' : ''}" onclick="selectColor('${category}', '${item.hex}')">
+            <div class="swatch-circle" style="background-color: ${item.hex}"></div>
+            <div class="swatch-info">
+              <span class="swatch-brand">${item.brand}</span>
+              <span class="swatch-name">${item.name}</span>
+            </div>
+            ${isRecommended ? '<span class="rec-badge">✨ 命定</span>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      grid.innerHTML = html;
+    }
+
+    // 選擇顏色
+    function selectColor(category, colorHex) {
+      if (category === 'lipstick') {
+        selectedLipColor = colorHex;
+        applyLipstick();
+      } else if (category === 'eyeshadow') {
+        selectedEyeColor = colorHex;
+        applyEyeshadow();
+      } else if (category === 'blush') {
+        selectedBlushColor = colorHex;
+        applyBlush();
+      } else if (category === 'foundation') {
+        selectedFoundationColor = colorHex;
+        applyFoundation();
+      }
+      // 重繪色票狀態以更新選中框
+      renderSwatches();
+    }
+
+    // 自訂選色處理，更新彩色球背景
+    function selectCustomColor(category, colorHex) {
+      selectColor(category, colorHex);
+      
+      const pickerWrapper = document.getElementById(category + 'CustomPickerWrapper');
+      if (pickerWrapper) {
+        pickerWrapper.style.background = colorHex;
+      }
+    }
+
+    // ── 一鍵套用專屬場合妝容 ──
+    function applyDestinyMakeup() {
+      const userSeasonName = seasonMapping[currentUserSeason].seasonName;
+      const look = occasionMakeupMapping[userSeasonName][currentOccasion];
+
+      if (look.lipstick) {
+        selectedLipColor = look.lipstick.hex;
+        selectedLipTexture = look.lipstick.texture;
+        selectedLipOpacity = look.lipstick.opacity / 100;
+        
+        // 同步 UI 滑桿與按鈕
+        document.getElementById('lipstickOpacity').value = look.lipstick.opacity;
+        document.getElementById('lipstickOpacityVal').textContent = look.lipstick.opacity + '%';
+        document.getElementById('btnMatte').classList.toggle('active', look.lipstick.texture === 'matte');
+        document.getElementById('btnGlossy').classList.toggle('active', look.lipstick.texture === 'glossy');
+      }
+      
+      if (look.eyeshadow) {
+        selectedEyeColor = look.eyeshadow.hex;
+        selectedEyeOpacity = look.eyeshadow.opacity / 100;
+        
+        // 同步 UI 滑桿
+        document.getElementById('eyeshadowOpacity').value = look.eyeshadow.opacity;
+        document.getElementById('eyeshadowOpacityVal').textContent = look.eyeshadow.opacity + '%';
+      }
+      
+      if (look.blush) {
+        selectedBlushColor = look.blush.hex;
+        selectedBlushOpacity = look.blush.opacity / 100;
+        
+        // 同步 UI 滑桿
+        document.getElementById('blushOpacity').value = look.blush.opacity;
+        document.getElementById('blushOpacityVal').textContent = look.blush.opacity + '%';
+      }
+      
+      // 不套用命定底妝，將其清空
+      selectedFoundationColor = '';
+      applyFoundation();
+
+      // 套用
+      applyLipstick();
+      applyEyeshadow();
+      applyBlush();
+
+      // 重繪選取狀態
+      renderSwatches();
+    }
+
+    // ── 套用妝容渲染 (CSS + SVG 操作) ──
+    
+    // 1. 唇彩
+    function applyLipstick() {
+      const lips = document.getElementById('lips');
+      const gloss = document.getElementById('lipsGloss');
+      
+      if (selectedLipColor) {
+        lips.setAttribute('fill', selectedLipColor);
+        lips.style.opacity = selectedLipOpacity;
+        
+        if (selectedLipTexture === 'glossy') {
+          gloss.style.opacity = selectedLipOpacity * 0.7; // 高光層透明度
+        } else {
+          gloss.style.opacity = '0';
+        }
+      } else {
+        lips.setAttribute('fill', 'transparent');
+        lips.style.opacity = '0';
+        gloss.style.opacity = '0';
+      }
+    }
+
+    // 2. 眼影
+    function applyEyeshadow() {
+      const left = document.getElementById('eyeshadowLeft');
+      const right = document.getElementById('eyeshadowRight');
+      
+      if (selectedEyeColor) {
+        left.setAttribute('fill', selectedEyeColor);
+        left.style.opacity = selectedEyeOpacity;
+        right.setAttribute('fill', selectedEyeColor);
+        right.style.opacity = selectedEyeOpacity;
+      } else {
+        left.setAttribute('fill', 'transparent');
+        left.style.opacity = '0';
+        right.setAttribute('fill', 'transparent');
+        right.style.opacity = '0';
+      }
+    }
+
+    // 3. 腮紅
+    function applyBlush() {
+      const left = document.getElementById('blushLeft');
+      const right = document.getElementById('blushRight');
+      
+      if (selectedBlushColor) {
+        left.setAttribute('fill', selectedBlushColor);
+        left.style.opacity = selectedBlushOpacity;
+        right.setAttribute('fill', selectedBlushColor);
+        right.style.opacity = selectedBlushOpacity;
+      } else {
+        left.setAttribute('fill', 'transparent');
+        left.style.opacity = '0';
+        right.setAttribute('fill', 'transparent');
+        right.style.opacity = '0';
+      }
+    }
+
+    // 4. 底妝
+    function applyFoundation() {
+      const fLayer = document.getElementById('foundationLayer');
+      if (selectedFoundationColor) {
+        fLayer.style.backgroundColor = selectedFoundationColor;
+        fLayer.style.opacity = selectedFoundationOpacity;
+      } else {
+        fLayer.style.backgroundColor = 'transparent';
+        fLayer.style.opacity = '0';
+      }
+    }
+
+    // ── 滑桿與屬性更新 ──
+    
+    function updateLipstickOpacity(val) {
+      selectedLipOpacity = val / 100;
+      document.getElementById('lipstickOpacityVal').textContent = val + '%';
+      applyLipstick();
+    }
+
+    function setLipTexture(texture) {
+      selectedLipTexture = texture;
+      document.getElementById('btnMatte').classList.toggle('active', texture === 'matte');
+      document.getElementById('btnGlossy').classList.toggle('active', texture === 'glossy');
+      applyLipstick();
+    }
+
+    function updateEyeshadowOpacity(val) {
+      selectedEyeOpacity = val / 100;
+      document.getElementById('eyeshadowOpacityVal').textContent = val + '%';
+      applyEyeshadow();
+    }
+
+    function updateBlushOpacity(val) {
+      selectedBlushOpacity = val / 100;
+      document.getElementById('blushOpacityVal').textContent = val + '%';
+      applyBlush();
+    }
+
+    // ── 底妝滑桿更新 ──
+    function updateFoundationOpacity(val) {
+      selectedFoundationOpacity = val / 100;
+      document.getElementById('foundationOpacityVal').textContent = val + '%';
+      applyFoundation();
+    }
+
+    // ── Tabs 切換 ──
+    function switchTab(tabId) {
+      // 切換按鈕 active 樣式
+      const buttons = document.querySelectorAll('.tab-btn');
+      buttons.forEach(btn => {
+        const onclickAttr = btn.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(tabId)) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // 切換顯示面板
+      const sections = document.querySelectorAll('.color-picker-section');
+      sections.forEach(sec => {
+        if (sec.id === tabId + 'Section') {
+          sec.classList.add('active');
+        } else {
+          sec.classList.remove('active');
+        }
+      });
+    }
+
+    // ── Before / After 即時對比 ──
+    let savedBackup = null;
+
+    function startCompare() {
+      // 備份目前妝容設定，並將畫面暫時清空
+      savedBackup = {
+        lipColor: selectedLipColor,
+        eyeColor: selectedEyeColor,
+        blushColor: selectedBlushColor,
+        fdColor: selectedFoundationColor
+      };
+
+      // 清空畫面
+      selectedLipColor = '';
+      selectedEyeColor = '';
+      selectedBlushColor = '';
+      selectedFoundationColor = '';
+      
+      applyLipstick();
+      applyEyeshadow();
+      applyBlush();
+      applyFoundation();
+    }
+
+    function endCompare() {
+      if (savedBackup) {
+        // 還原妝容
+        selectedLipColor = savedBackup.lipColor;
+        selectedEyeColor = savedBackup.eyeColor;
+        selectedBlushColor = savedBackup.blushColor;
+        selectedFoundationColor = savedBackup.fdColor;
+
+        applyLipstick();
+        applyEyeshadow();
+        applyBlush();
+        applyFoundation();
+
+        savedBackup = null;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>12型色彩解析與功能選單</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+</head>
+<body>
+
+  <button class="fixed-hamburger mobile-ui-only" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo">個人色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <div class="content-wrapper">
+      
+      <a href="javascript:history.back()" class="back-btn fade-in delay-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        回上頁
+      </a>
+
+      <h1 class="page-title fade-in delay-1">12型色彩深度解析</h1>
+      
+      <section class="theory-card fade-in delay-2">
+        <h2>關於色彩鑑定</h2>
+        <p>基於「四季理論」，將人依據膚色、瞳孔、髮色分為冷暖色調與四季型人。其原理在於色彩的「色彩三屬性」（色相、明度、彩度）會影響光線在人臉上的反射，進而調整氣色、瑕疵與視覺和諧度。</p>
+        
+        <div class="history-timeline">
+          <div class="history-item">
+            <strong>起源 (1970s末-1980s)</strong>
+            <span>歐美開始流行，Carole Jackson 的著作《Color Me Beautiful》奠定「四季理論」。</span>
+          </div>
+          <div class="history-item">
+            <strong>日韓引進與本土化 (1990s)</strong>
+            <span>日本引進後結合 
+              <span class="tooltip-trigger" data-tooltip="PCCS又稱實用配色系統，是一種顯色系統，注重人眼所感知的色感覺差。是將「明度」與「彩度」複合為「色調」的概念，依據色相與色調來組織色彩，特別適合設計與配色。">PCCS</span> 
+              色彩體系進行修正，使系統更適合亞洲人的黃調膚色。
+            </span>
+          </div>
+          <div class="history-item">
+            <strong>現代爆紅</strong>
+            <span>透過韓國演藝圈與社群媒體，近年再度成為主流穿搭與彩妝建議的依據。</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="accordion-container fade-in delay-3">
+        
+        <div class="accordion-col">
+          <div class="accordion-item" id="spring">
+          <div class="accordion-header" onclick="toggleAccordion('spring')">
+            <div class="season-title">春季型</div>
+            <div class="toggle-icon">▼</div>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-inner">
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #FFD1DC;"></div><h3>亮春型</h3></div>
+                <p>明亮、輕盈，適合粉嫩色。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #F4A460;"></div><h3>暖春型</h3></div>
+                <p>標準暖色調，色澤鮮明。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #FF6347;"></div><h3>豔春型</h3></div>
+                <p>高對比、明亮且飽和度高。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" id="summer">
+          <div class="accordion-header" onclick="toggleAccordion('summer')">
+            <div class="season-title">夏季型</div>
+            <div class="toggle-icon">▼</div>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-inner">
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #E6E6FA;"></div><h3>亮夏型</h3></div>
+                <p>柔和、偏淡的冷色調。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: var(--accent-light);"></div><h3>冷夏型</h3></div>
+                <p>明顯的冷色感，給人清涼印象。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: var(--accent-main);"></div><h3>柔夏型</h3></div>
+                <p>帶有灰色調的低飽和冷色。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        </div>
+        
+        <div class="accordion-col">
+          <div class="accordion-item" id="autumn">
+          <div class="accordion-header" onclick="toggleAccordion('autumn')">
+            <div class="season-title">秋季型</div>
+            <div class="toggle-icon">▼</div>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-inner">
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #D2B48C;"></div><h3>柔秋型</h3></div>
+                <p>溫暖且帶有朦朧灰調。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: var(--text-muted);"></div><h3>暖秋型</h3></div>
+                <p>濃郁的木質與大地色系。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: var(--text-dark);"></div><h3>深秋型</h3></div>
+                <p>成熟、深邃且濃厚的暖色。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" id="winter">
+          <div class="accordion-header" onclick="toggleAccordion('winter')">
+            <div class="season-title">冬季型</div>
+            <div class="toggle-icon">▼</div>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-inner">
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #DC143C;"></div><h3>豔冬型</h3></div>
+                <p>高對比、極其鮮明且清冷。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #000080;"></div><h3>冷冬型</h3></div>
+                <p>極致的冷色調。</p>
+              </div>
+              <div class="type-card">
+                <div class="type-header"><div class="type-dot" style="background: #2F4F4F;"></div><h3>深冬型</h3></div>
+                <p>沉穩、厚重且飽和度高的冷色。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="main-footer fade-in delay-3">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <script>
+    function toggleMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    }
+
+    function toggleAccordion(id) {
+      const item = document.getElementById(id);
+      item.classList.toggle('active');
+    }
+
+    window.onload = function() {
+      const hash = window.location.hash.substring(1); 
+      if(hash) {
+        const targetElement = document.getElementById(hash);
+        if(targetElement) {
+          targetElement.classList.add('active');
+          setTimeout(() => {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        }
+      }
+    };
+  </script>
+</body>
+</html>

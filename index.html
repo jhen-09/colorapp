@@ -1,0 +1,567 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>個人色彩鑑定 App</title>
+  <meta name="description" content="透過 AI 智能分析膚色，精準找出您的十二型命定色彩">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* ── 片頭 Scroll 區域 ── */
+    #intro-scroll-container {
+      height: 280vh;
+      width: 100%;
+      position: relative;
+    }
+
+    .intro-scene {
+      position: sticky; top: 0; left: 0;
+      width: 100%; height: 100vh;
+      overflow: hidden;
+      display: flex; justify-content: center; align-items: center;
+      background: #faf8f5;
+    }
+
+    /* Three.js 畫布 */
+    #sphereCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    /* 環境光暈 */
+    .intro-glow {
+      position: absolute;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse,
+        rgba(242,132,130,0.18) 0%,
+        rgba(132,165,157,0.10) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+
+    /* 文字 */
+    #intro-text {
+      position: absolute;
+      font-family: 'Noto Serif TC', serif;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #intro-text .zh {
+      display: block;
+      font-size: clamp(32px, 8vw, 56px);
+      font-weight: 600;
+      color: #2c2a29;
+      letter-spacing: 0.18em;
+      line-height: 1.2;
+    }
+    #intro-text .sub {
+      display: block;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(13px, 3vw, 18px);
+      font-weight: 300;
+      letter-spacing: 0.4em;
+      color: #7a7068;
+      margin-top: 18px;
+    }
+
+    /* 季節色標籤 — 裝飾用 */
+    .season-pills {
+      position: absolute;
+      bottom: 56px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 12px;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.6s;
+    }
+    .season-pills.show { opacity: 1; }
+    .pill {
+      padding: 6px 18px;
+      border-radius: 100px;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      font-family: 'Noto Serif TC', serif;
+      border: 1px solid rgba(255,255,255,0.6);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      font-weight: 500;
+    }
+    .pill-spring  { background: rgba(242,132,130,0.7); }
+    .pill-summer  { background: rgba(132,165,157,0.7); }
+    .pill-autumn  { background: rgba(246,189,96,0.75); }
+    .pill-winter  { background: rgba(74,93,138,0.75); }
+
+    /* ── 主體內容 ── */
+    @media(max-width: 768px) {
+      #intro-text .zh { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // 若是從其他頁面「返回首頁」，直接徹底隱藏片頭動畫，確保往上滑也不會看到滾動球
+    if (window.location.hash === '#main-app') {
+      document.write('<style>#intro-scroll-container { display: none !important; }</style>');
+      
+      // 隱藏 hash 保持網址乾淨
+      if ('replaceState' in history) {
+        history.replaceState(null, '', window.location.pathname);
+      }
+      
+      // 確保捲動軸回到最上方（因為片頭已經隱藏，上方就是主程式）
+      window.addEventListener('DOMContentLoaded', function() {
+        window.scrollTo(0, 0);
+      });
+    }
+  </script>
+
+  <!-- 片頭捲動動畫 -->
+  <div id="intro-scroll-container">
+    <div class="intro-scene">
+      <canvas id="sphereCanvas"></canvas>
+      <div class="intro-glow" id="introGlow"></div>
+      <div id="intro-text">
+        <span class="zh">尋找命定色彩</span>
+        <span class="sub">DISCOVER YOUR PERSONAL COLOR</span>
+      </div>
+      <div class="season-pills" id="seasonPills">
+        <span class="pill pill-spring">春</span>
+        <span class="pill pill-summer">夏</span>
+        <span class="pill pill-autumn">秋</span>
+        <span class="pill pill-winter">冬</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主 App 內容 -->
+  <div id="main-app">
+
+  <button class="fixed-hamburger mobile-ui-only" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app" class="active">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="hero-grid">
+      <section class="hero-card fade-in delay-1">
+        <div class="hero-content">
+          <div>
+            <h1 class="hero-title">尋找你的專屬色彩</h1>
+            <p class="hero-subtitle">透過智能鏡頭分析膚色、瞳孔與髮色，精準找出最適合您的十二型命定色，重塑個人專屬的高級質感。</p>
+          </div>
+          <div class="action-buttons">
+            <a href="camera.html" class="btn-primary">開啟相機測色</a>
+            <button class="btn-secondary" onclick="triggerHomePhotoUpload()">上傳照片分析</button>
+            <input type="file" id="homePhotoUpload" accept="image/*" style="display:none" onchange="handleHomePhotoUpload(event)">
+          </div>
+        </div>
+      </section>
+
+      <section class="hero-card fade-in delay-2">
+        <div class="hero-content">
+          <div>
+            <h2 class="hero-title">各色系穿搭指南</h2>
+            <p class="hero-subtitle">探索春、夏、秋、冬四季專屬的色系搭配，找出最能襯托您氣質的服裝與配件，打造極致的和諧感。</p>
+          </div>
+          <div class="season-grid">
+            <a href="#" class="season-btn s-spring">春</a>
+            <a href="#" class="season-btn s-summer">夏</a>
+            <a href="#" class="season-btn s-autumn">秋</a>
+            <a href="#" class="season-btn s-winter">冬</a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 三步驟流程 -->
+    <section class="fade-in delay-3" style="margin: 40px 0;">
+      <h2 style="text-align:center; font-size:15px; letter-spacing:0.28em; color:#A89C93; text-transform:uppercase; font-weight:600; margin-bottom:26px;">How It Works · 三步找到命定色</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+        <div style="background:#fff; border:1px solid #EFE7E1; border-radius:22px; padding:26px 24px; text-align:center; box-shadow:0 12px 34px rgba(90,65,50,0.06);">
+          <svg viewBox="0 0 48 48" style="width:44px; height:44px; margin-bottom:12px;"><rect x="8" y="14" width="32" height="24" rx="5" fill="none" stroke="#E58E96" stroke-width="2.5"/><circle cx="24" cy="26" r="7" fill="none" stroke="#E58E96" stroke-width="2.5"/><rect x="19" y="9" width="10" height="5" rx="2" fill="#E58E96"/></svg>
+          <div style="font-size:15px; font-weight:600; color:#3A312B; margin-bottom:6px;">拍攝或上傳照片</div>
+          <div style="font-size:12.5px; line-height:1.8; color:#A89C93;">自然光下的正面素顏照最準確，系統會即時檢查光線品質</div>
+        </div>
+        <div style="background:#fff; border:1px solid #EFE7E1; border-radius:22px; padding:26px 24px; text-align:center; box-shadow:0 12px 34px rgba(90,65,50,0.06);">
+          <svg viewBox="0 0 48 48" style="width:44px; height:44px; margin-bottom:12px;"><circle cx="24" cy="24" r="15" fill="none" stroke="#E58E96" stroke-width="2.5"/><path d="M24 9 A15 15 0 0 1 39 24" fill="none" stroke="#E58E96" stroke-width="5" stroke-linecap="round"/><circle cx="24" cy="24" r="5" fill="#E58E96"/></svg>
+          <div style="font-size:15px; font-weight:600; color:#3A312B; margin-bottom:6px;">AI 膚色分析</div>
+          <div style="font-size:12.5px; line-height:1.8; color:#A89C93;">臉部定位取樣，以 Lab 色彩空間判定冷暖、深淺、清濁三軸</div>
+        </div>
+        <div style="background:#fff; border:1px solid #EFE7E1; border-radius:22px; padding:26px 24px; text-align:center; box-shadow:0 12px 34px rgba(90,65,50,0.06);">
+          <svg viewBox="0 0 48 48" style="width:44px; height:44px; margin-bottom:12px;"><circle cx="17" cy="20" r="7" fill="#F0C4AE"/><circle cx="31" cy="20" r="7" fill="#B7CDC7"/><circle cx="17" cy="32" r="7" fill="#DDB68C"/><circle cx="31" cy="32" r="7" fill="#A9B6CB"/></svg>
+          <div style="font-size:15px; font-weight:600; color:#3A312B; margin-bottom:6px;">獲得專屬推薦</div>
+          <div style="font-size:12.5px; line-height:1.8; color:#A89C93;">12 型命定色 × 彩妝試妝 × 髮色渲染 × 穿搭指南一次到位</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 型色彩地圖 -->
+    <section class="fade-in delay-3" style="margin: 40px 0;">
+      <h2 style="text-align:center; font-size:15px; letter-spacing:0.28em; color:#A89C93; text-transform:uppercase; font-weight:600; margin-bottom:8px;">Color Map · 探索 12 型命定色</h2>
+      <p style="text-align:center; font-size:12.5px; color:#A89C93; margin-bottom:24px;">點擊任一類型，先睹為快各型的專屬色彩世界</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px;" id="typeMapGrid"></div>
+    </section>
+
+    <a href="details.html" class="explore-card fade-in delay-3">
+      <div class="explore-text">
+        <h2>了解更多色彩鑑定</h2>
+        <p>深入認識色彩鑑定的原理，探索春、夏、秋、冬四季屬性，尋找專屬於你的色調。</p>
+      </div>
+    </a>
+  </main>
+
+  <footer class="main-footer fade-in delay-3">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  </div><!-- end main-app -->
+
+  <script>
+    // 12 型色彩地圖（首頁探索入口）
+    (function renderTypeMap() {
+      const types = [
+        ["light-spring","亮春","Light Spring",["#FFC5B3","#FFDBA8","#B4D661"]],
+        ["warm-spring","暖春","Warm Spring",["#FF7F50","#F7D060","#8FBC5A"]],
+        ["bright-spring","豔春","Bright Spring",["#FF4F7B","#2EC4B6","#FFD23F"]],
+        ["light-summer","亮夏","Light Summer",["#F5A7B8","#BBD3E8","#CCA9DD"]],
+        ["cool-summer","冷夏","Cool Summer",["#7EB6FF","#ECA3C0","#9AA7C9"]],
+        ["soft-summer","柔夏","Soft Summer",["#CCACB1","#9DB4AB","#A793B4"]],
+        ["soft-autumn","柔秋","Soft Autumn",["#C4B1A7","#9F9A7B","#C58D83"]],
+        ["warm-autumn","暖秋","Warm Autumn",["#B9663B","#D7A643","#7A8143"]],
+        ["deep-autumn","深秋","Deep Autumn",["#6E3B24","#4F5D46","#8C5A34"]],
+        ["bright-winter","豔冬","Bright Winter",["#E32148","#2752E1","#FFFFFF"]],
+        ["cool-winter","冷冬","Cool Winter",["#D33682","#1A4EB1","#B8C0C8"]],
+        ["deep-winter","深冬","Deep Winter",["#6D2E46","#191970","#1A1A1A"]],
+      ];
+      const grid = document.getElementById('typeMapGrid');
+      if (!grid) return;
+      grid.innerHTML = types.map(([id, zh, en, cs]) => `
+        <a href="destiny-color.html?type=${id}" style="text-decoration:none; background:#fff; border:1px solid #EFE7E1; border-radius:18px; padding:16px 14px; display:flex; flex-direction:column; align-items:center; gap:10px; transition:all 0.3s; box-shadow:0 8px 22px rgba(90,65,50,0.05);"
+           onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 16px 34px rgba(90,65,50,0.12)';"
+           onmouseout="this.style.transform=''; this.style.boxShadow='0 8px 22px rgba(90,65,50,0.05)';">
+          <span style="display:flex;">
+            ${cs.map((c, i) => `<span style="width:26px; height:26px; border-radius:50%; background:${c}; border:2px solid #fff; margin-left:${i ? '-8px' : '0'}; box-shadow:0 2px 6px rgba(0,0,0,0.12);"></span>`).join('')}
+          </span>
+          <span style="font-size:14px; font-weight:600; color:#3A312B;">${zh}型</span>
+          <span style="font-size:10px; letter-spacing:0.12em; color:#A89C93; text-transform:uppercase;">${en}</span>
+        </a>`).join('');
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="js/color-analysis.js"></script>
+  <script>
+    function toggleMenu() {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    // 上傳照片分析邏輯
+    function triggerHomePhotoUpload() {
+      document.getElementById('homePhotoUpload').click();
+    }
+
+    function handleHomePhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          // 先把照片縮小到 800px 內，避免塞爆 localStorage (約 5MB 上限)
+          const resized = await resizeImageDataUrl(e.target.result, 800);
+
+          // 儲存照片（就算存失敗也不影響分析，只是結果頁看不到照片）
+          try {
+            localStorage.setItem('userCapturedPhoto', resized);
+          } catch (storageErr) {
+            console.warn('照片儲存失敗（容量不足），略過', storageErr);
+          }
+
+          // 真實分析：膚色取樣 → Lab 色彩空間 → 12 型判定
+          const analysis = await analyzeImageDataUrl(resized);
+          console.log('色彩分析結果', analysis);
+
+          if (!analysis) {
+            alert('照片中偵測不到足夠的膚色區域，請換一張光線充足、臉部清楚的正面照。');
+            return;
+          }
+
+          localStorage.setItem('userColorType', analysis.type);
+          try {
+            localStorage.setItem('userAnalysisData', JSON.stringify(analysis.debug));
+            localStorage.setItem('freshAnalysis', '1'); // 標記：結果頁會存進資料庫
+          } catch(e2) {}
+          window.location.href = `destiny-color.html?type=${analysis.type}`;
+        } catch (err) {
+          console.error('分析失敗', err);
+          alert('分析過程發生錯誤：' + err.message + '\n請按 F12 查看 Console 詳細訊息。');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  </script>
+
+  <!-- Three.js 3D 色彩球 + 捲動動畫 -->
+  <script>
+  (function() {
+    const canvas = document.getElementById('sphereCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 6);
+
+    // ── 燈光 ──
+    const ambient = new THREE.AmbientLight(0xfff8f0, 0.6);
+    scene.add(ambient);
+
+    const keyLight = new THREE.DirectionalLight(0xfff0e8, 1.4);
+    keyLight.position.set(3, 4, 5);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.PointLight(0xc8d8f0, 0.8, 20);
+    fillLight.position.set(-4, -2, 3);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.PointLight(0xf5c8a0, 0.6, 15);
+    rimLight.position.set(0, -4, -2);
+    scene.add(rimLight);
+
+    // ── 四季色定義 ──
+    const SEASON_COLORS = [
+      new THREE.Color(0xf28482), // 春 — 暖粉
+      new THREE.Color(0xf6bd60), // 秋 — 暖橘
+      new THREE.Color(0x84a59d), // 夏 — 冷綠
+      new THREE.Color(0x4A5D8A), // 冬 — 冷藍
+    ];
+
+    // ── 3D 球體（頂點色） ──
+    const sphereGeo = new THREE.SphereGeometry(1.6, 128, 128);
+    const colors = [];
+    const posArr = sphereGeo.attributes.position.array;
+
+    for (let i = 0; i < posArr.length; i += 3) {
+      const x = posArr[i], y = posArr[i+1], z = posArr[i+2];
+      // 用 atan2 把球面分成四個扇區
+      const angle = Math.atan2(z, x); // -π ~ π
+      const norm = (angle + Math.PI) / (Math.PI * 2); // 0 ~ 1
+
+      let c;
+      if (norm < 0.25)      c = SEASON_COLORS[0].clone().lerp(SEASON_COLORS[1], norm / 0.25);
+      else if (norm < 0.5)  c = SEASON_COLORS[1].clone().lerp(SEASON_COLORS[2], (norm-0.25)/0.25);
+      else if (norm < 0.75) c = SEASON_COLORS[2].clone().lerp(SEASON_COLORS[3], (norm-0.5)/0.25);
+      else                  c = SEASON_COLORS[3].clone().lerp(SEASON_COLORS[0], (norm-0.75)/0.25);
+
+      // 加入高度影響（頂部偏白，底部偏暗）
+      const heightFactor = (y / 1.6 + 1) * 0.5; // 0~1
+      c.lerp(new THREE.Color(0xfff8f5), heightFactor * 0.25);
+
+      colors.push(c.r, c.g, c.b);
+    }
+
+    sphereGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+
+    const sphereMat = new THREE.MeshPhongMaterial({
+      vertexColors: true,
+      shininess: 120,
+      specular: new THREE.Color(0xffffff),
+      transparent: true,
+      opacity: 1,
+    });
+    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+    scene.add(sphere);
+
+    // ── 玻璃高光層 ──
+    const glassGeo = new THREE.SphereGeometry(1.62, 64, 64);
+    const glassMat = new THREE.MeshPhongMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.12,
+      shininess: 300,
+      specular: new THREE.Color(0xffffff),
+      side: THREE.FrontSide,
+    });
+    const glass = new THREE.Mesh(glassGeo, glassMat);
+    scene.add(glass);
+
+    // ── 粒子群 ──
+    const PARTICLE_COUNT = 220;
+    const pGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(PARTICLE_COUNT * 3);
+    const pColors = new Float32Array(PARTICLE_COUNT * 3);
+    const pSpeeds = [];
+    const pRadii = [];
+    const pAngles = [];
+    const pHeights = [];
+
+    const palette = [
+      new THREE.Color(0xf28482), new THREE.Color(0xf6bd60),
+      new THREE.Color(0x84a59d), new THREE.Color(0x4A5D8A),
+      new THREE.Color(0xf5e6e0), new THREE.Color(0xb5c8c0),
+      new THREE.Color(0xe8c8a0), new THREE.Color(0x8899bb),
+    ];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const r = 2.2 + Math.random() * 3.5;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = (Math.random() - 0.5) * Math.PI;
+      pRadii.push(r); pAngles.push(theta); pHeights.push(phi);
+      pSpeeds.push((Math.random() - 0.5) * 0.003);
+
+      pPos[i*3]   = r * Math.cos(theta) * Math.cos(phi);
+      pPos[i*3+1] = r * Math.sin(phi);
+      pPos[i*3+2] = r * Math.sin(theta) * Math.cos(phi);
+
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      pColors[i*3] = c.r; pColors[i*3+1] = c.g; pColors[i*3+2] = c.b;
+    }
+
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    pGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+
+    const pMat = new THREE.PointsMaterial({
+      vertexColors: true, size: 0.055,
+      transparent: true, opacity: 0.75,
+      sizeAttenuation: true,
+    });
+    const particles = new THREE.Points(pGeo, pMat);
+    scene.add(particles);
+
+    // ── 捲動邏輯 ──
+    let scrollProgress = 0;
+    let targetProgress = 0;
+    let rafId = null;
+
+    function onScroll() {
+      const container = document.getElementById('intro-scroll-container');
+      const maxScroll = container.offsetHeight - window.innerHeight;
+      targetProgress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+
+      const text = document.getElementById('intro-text');
+      const pills = document.getElementById('seasonPills');
+
+      // 文字淡入淡出
+      let tOpacity = 0;
+      if (targetProgress <= 0.35)      tOpacity = targetProgress / 0.35;
+      else if (targetProgress <= 0.55) tOpacity = 1 - (targetProgress - 0.35) / 0.2;
+      text.style.opacity = tOpacity;
+
+      // 季節標籤 (0.1 ~ 0.5 顯示)
+      if (targetProgress > 0.08 && targetProgress < 0.55) {
+        pills.classList.add('show');
+      } else {
+        pills.classList.remove('show');
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // ── 動畫迴圈 ──
+    const clock = new THREE.Clock();
+
+    function animate() {
+      rafId = requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // 平滑插值 scrollProgress
+      scrollProgress += (targetProgress - scrollProgress) * 0.06;
+      const p = scrollProgress;
+
+      // 球體旋轉
+      sphere.rotation.y = t * 0.18 - p * Math.PI * 3;
+      sphere.rotation.x = Math.sin(t * 0.12) * 0.15;
+      glass.rotation.y  = sphere.rotation.y;
+      glass.rotation.x  = sphere.rotation.x;
+
+      // 球體位移 (p > 0.12 開始往左飛出)
+      let tx = 0, scale = 1;
+      if (p > 0.12) {
+        const mp = (p - 0.12) / 0.88;
+        tx = -(mp * mp) * 14; // 二次曲線加速
+        scale = 1 - mp * 0.2;
+      }
+      // 輕微浮動
+      const floatY = Math.sin(t * 0.5) * 0.08;
+      sphere.position.set(tx, floatY, 0);
+      glass.position.copy(sphere.position);
+      particles.position.set(tx, floatY, 0);
+
+      sphere.scale.setScalar(scale);
+      glass.scale.setScalar(scale);
+
+      // 粒子自轉
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        pAngles[i] += pSpeeds[i];
+        const r = pRadii[i];
+        const theta = pAngles[i];
+        const phi = pHeights[i];
+        pPos[i*3]   = r * Math.cos(theta) * Math.cos(phi);
+        pPos[i*3+1] = r * Math.sin(phi) + Math.sin(t * 0.3 + i) * 0.04;
+        pPos[i*3+2] = r * Math.sin(theta) * Math.cos(phi);
+      }
+      pGeo.attributes.position.needsUpdate = true;
+      pMat.opacity = Math.max(0, 0.75 - p * 0.8);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ── Resize ──
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // 初始化
+    window.dispatchEvent(new Event('scroll'));
+  })();
+  </script>
+
+</body>
+</html>

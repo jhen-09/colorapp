@@ -1,0 +1,342 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>色彩分析鏡頭 - 個人色彩鑑定 App</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* 覆蓋 body 確保相機為深色沉浸式體驗 */
+    body {
+      background-color: #1a1a1a;
+      overflow: hidden; /* 防止滾動 */
+    }
+
+    /* 頂部導航列回覆深色系，隱藏非必要元件 */
+    .camera-header {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      padding: 20px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 100;
+    }
+    
+    .btn-close {
+      width: 44px; height: 44px;
+      background: rgba(0,0,0,0.5); border-radius: 50%;
+      display: flex; justify-content: center; align-items: center;
+      color: #fff; font-size: 24px; cursor: pointer; border: 1px solid rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px); transition: all 0.3s; text-decoration: none;
+    }
+    .btn-close:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+
+    .camera-title {
+      color: #fff; font-size: 16px; letter-spacing: 0.15em; font-weight: 500;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* 相機主畫面 */
+    .camera-view-container {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100dvh;
+      overflow: hidden; display: flex; justify-content: center; align-items: center;
+    }
+
+    #webcam {
+      width: 100%; height: 100%; object-fit: cover;
+      transform: scaleX(-1); /* 鏡像顯示 */
+      opacity: 0; transition: opacity 0.5s ease;
+    }
+
+    /* 模糊霧面遮罩 (Cutout) */
+    .blur-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 12, 10, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      /* 利用遮罩挖空臉部區域 */
+      mask-image: radial-gradient(ellipse 130px 180px at 50% 42%, transparent 99%, black 100%);
+      -webkit-mask-image: radial-gradient(ellipse 130px 180px at 50% 42%, transparent 99%, black 100%);
+      z-index: 10;
+    }
+
+    /* 虛線導引框 */
+    .face-guide {
+      position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
+      width: 260px; height: 360px; border-radius: 50%;
+      border: 1.5px dashed rgba(255, 255, 255, 0.6);
+      z-index: 15; transition: all 0.5s ease;
+    }
+    .face-guide.good-light { border-color: #6EEB83; box-shadow: 0 0 20px rgba(110, 235, 131, 0.3) inset; }
+    .face-guide.scanning {
+      border-color: var(--accent-main);
+      box-shadow: 0 0 30px rgba(242, 132, 130, 0.5); border-style: solid;
+      animation: pulseFrame 1.5s infinite alternate;
+    }
+
+    @keyframes pulseFrame {
+      0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 10px rgba(242, 132, 130, 0.2); }
+      100% { transform: translate(-50%, -50%) scale(1.02); box-shadow: 0 0 40px rgba(242, 132, 130, 0.8); }
+    }
+
+    /* AI 掃描光束 */
+    .scan-beam {
+      position: absolute; top: 0; left: 0; width: 100%; height: 50px;
+      background: linear-gradient(to bottom, transparent, rgba(242, 132, 130, 0.8), transparent);
+      z-index: 16; opacity: 0; 
+      /* 動畫會在 JS 中套用 */
+    }
+    @keyframes scanMotion {
+      0% { top: 0; }
+      100% { top: calc(100% - 50px); }
+    }
+
+    /* 底部操作區 */
+    .camera-footer {
+      position: absolute; bottom: 0; left: 0; width: 100%;
+      padding: 30px 24px 60px 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 32px;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      z-index: 20;
+    }
+
+    /* 動態狀態列 */
+    .status-bar {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      padding: 12px 24px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.1);
+      color: #fff; font-size: 14px; letter-spacing: 0.1em; transition: all 0.4s ease;
+      /* Glowing effect for specific statuses */
+    }
+    .status-bar.analyzing { background: var(--accent-main); border-color: transparent; }
+
+    /* 高質感快門鈕 */
+    .shutter-wrapper { position: relative; width: 76px; height: 76px; display: flex; justify-content: center; align-items: center; }
+    .shutter-ring {
+      position: absolute; inset: 0; border: 3px solid #fff; border-radius: 50%; opacity: 0.8; transition: all 0.3s;
+    }
+    .shutter-btn {
+      width: 60px; height: 60px; background: #fff; border-radius: 50%; border: none; cursor: pointer; transition: all 0.3s;
+    }
+    .shutter-wrapper:hover .shutter-btn { transform: scale(0.95); }
+    .shutter-wrapper:hover .shutter-ring { transform: scale(1.05); }
+    .shutter-btn:disabled { opacity: 0.5; pointer-events: none; }
+
+    /* 假閃光燈 */
+    #flash {
+      position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 999;
+    }
+    @keyframes flashFx {
+      0% { opacity: 0.8; }
+      100% { opacity: 0; }
+    }
+    .flash-active { animation: flashFx 0.8s ease-out; }
+
+  </style>
+</head>
+<body>
+
+  <!-- 頂部按鈕 -->
+  <header class="camera-header fade-in">
+    <a href="index.html#main-app" class="btn-close">×</a>
+    <div class="camera-title">色彩鑑定</div>
+    <div style="width: 44px;"></div> <!-- 排版用空間佔位 -->
+  </header>
+
+  <!-- 相機與疊加 UI -->
+  <div class="camera-view-container">
+    <video id="webcam" autoplay playsinline></video>
+    <div class="blur-overlay"></div>
+    
+    <div class="face-guide" id="faceGuide">
+      <div class="scan-beam" id="scanBeam"></div>
+    </div>
+
+    <!-- 底部控制 -->
+    <div class="camera-footer fade-in delay-1">
+      <div class="status-bar" id="statusBar">
+        <span id="statusIcon">⚙️</span>
+        <span id="statusText">正在啟動鏡頭...</span>
+      </div>
+
+      <div class="shutter-wrapper" id="shutterContainer">
+        <div class="shutter-ring"></div>
+        <button class="shutter-btn" id="shutterBtn" onclick="startAnalysis()" disabled></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="js/color-analysis.js"></script>
+  <script>
+    const webcamFile = document.getElementById('webcam');
+    const statusBar = document.getElementById('statusBar');
+    const statusText = document.getElementById('statusText');
+    const statusIcon = document.getElementById('statusIcon');
+    const shutterBtn = document.getElementById('shutterBtn');
+    const faceGuide = document.getElementById('faceGuide');
+    const scanBeam = document.getElementById('scanBeam');
+    const flash = document.getElementById('flash');
+
+    // 啟動相機
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",              // 前鏡頭
+            width:  { ideal: 1280 },         // 要求高解析度，避免低畫質來源
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        webcamFile.srcObject = stream;
+        
+        webcamFile.onloadedmetadata = () => {
+          webcamFile.style.opacity = '1';
+          // 模擬 AI 光線偵測中
+          statusIcon.textContent = '✨';
+          statusText.textContent = '正在偵測光線環境...';
+          
+          setTimeout(() => {
+            statusIcon.textContent = '🎯';
+            statusText.textContent = '請將臉部對準虛線框';
+            faceGuide.classList.add('good-light'); // 變綠色或發光
+            shutterBtn.disabled = false;
+            // 預熱 AI 模型：先在背景跑一次偵測，拍照時即可秒回
+            if (typeof detectFaceLandmarks === 'function') {
+              detectFaceLandmarks(webcamFile).catch(() => {});
+            }
+          }, 1500);
+        };
+      } catch (err) {
+        console.error("相機存取失敗", err);
+        statusIcon.textContent = '⚠️';
+        statusText.textContent = '無法存取相機，請檢查權限';
+      }
+    }
+
+    initCamera();
+
+    // 高級感分析動畫流程
+    async function startAnalysis() {
+      // 1. 禁用快門並閃光
+      shutterBtn.disabled = true;
+      document.querySelector('.shutter-ring').style.display = 'none';
+      shutterBtn.style.transform = 'scale(0.5)';
+      shutterBtn.style.opacity = '0';
+      flash.classList.add('flash-active');
+      
+      // 凍結影像 (模擬拍照)
+      webcamFile.pause();
+
+      // 儲存擷取的照片到 localStorage（中央裁切，與預覽所見一致、不變形）
+      try {
+        const vw = webcamFile.videoWidth, vh = webcamFile.videoHeight;
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 750;
+        const ctx = canvas.getContext('2d');
+        // 水平翻轉以與鏡像畫面一致
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        // cover 裁切：以短邊為準置中裁切，比例不會被壓縮
+        const s = Math.max(canvas.width / vw, canvas.height / vh);
+        const cw = canvas.width / s, ch = canvas.height / s;
+        const cx0 = (vw - cw) / 2, cy0 = (vh - ch) / 2;
+        ctx.drawImage(webcamFile, cx0, cy0, cw, ch, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        localStorage.setItem('userCapturedPhoto', dataUrl);
+      } catch (e) {
+        console.error("無法儲存擷取的照片", e);
+      }
+
+      // 2. 狀態更新與掃描動畫
+      faceGuide.classList.remove('good-light');
+      faceGuide.classList.add('scanning');
+      scanBeam.style.opacity = '1';
+      scanBeam.style.animation = 'scanMotion 1s linear infinite alternate';
+      
+      statusBar.classList.add('analyzing');
+      statusIcon.textContent = '🔍';
+      statusText.textContent = '擷取 YCbCr 膚色特徵...';
+
+      // 先進行真實分析：AI 臉部定位取樣（雙頰・額頭・鼻樑），失敗退回 YCbCr
+      const analysis = await analyzeSkinColorAI(webcamFile);
+      console.log('色彩分析結果', analysis);
+      const d = analysis ? analysis.debug : null;
+      if (d) statusText.textContent = d.method.startsWith('AI')
+        ? '已鎖定臉部皮膚區域（雙頰・額頭・鼻樑）'
+        : '擷取 YCbCr 膚色特徵...';
+
+      // 即時膚色色票（顯示在狀態列文字前）
+      let chip = document.getElementById('liveSkinChip');
+      if (!chip) {
+        chip = document.createElement('span');
+        chip.id = 'liveSkinChip';
+        chip.style.cssText = 'display:none; width:16px; height:16px; border-radius:50%; margin-right:8px; vertical-align:-3px; border:2px solid rgba(255,255,255,0.85); box-shadow:0 2px 6px rgba(0,0,0,0.3); display:inline-block; opacity:0; transition:opacity 0.5s;';
+        statusText.parentNode.insertBefore(chip, statusText);
+      }
+
+      // 3. 專業分析步驟 — 顯示「真的量到的數據」
+      setTimeout(() => {
+        if (d) {
+          statusText.textContent = `偵測到 ${d.skinPixels.toLocaleString()} 個膚色像素`;
+          chip.style.backgroundColor = d.avgHex;
+          chip.style.opacity = '1';
+        } else {
+          statusText.textContent = '對映 Lab 色彩空間...';
+        }
+      }, 1500);
+
+      setTimeout(() => {
+        statusIcon.textContent = '📊';
+        statusText.textContent = d
+          ? `Lab 色彩空間：L* ${d.lab.L}｜色相角 ${d.hueAngle}°`
+          : '計算最佳提亮度與修飾色...';
+      }, 3000);
+
+      setTimeout(() => {
+        statusIcon.textContent = '✨';
+        if (d && d.warning) {
+          statusIcon.textContent = '⚠️';
+          statusText.textContent = '光線條件不佳，結果僅供參考（詳見結果頁說明）';
+        } else {
+          statusText.textContent = d
+            ? `彩度 C* ${d.chroma}（${d.axes.undertone}・${d.axes.clarity}）→ 比對 12 型資料庫...`
+            : '比對 12 型命定色資料庫...';
+        }
+      }, 4500);
+
+      setTimeout(() => {
+        // 釋放相機資源
+        const tracks = webcamFile.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+
+        if (analysis) {
+          // 儲存分析指標，讓結果頁能顯示三軸儀表與膚色色票
+          try {
+            localStorage.setItem('userAnalysisData', JSON.stringify(analysis.debug));
+            localStorage.setItem('freshAnalysis', '1'); // 標記：這是剛完成的新分析，結果頁會存進資料庫
+          } catch(e) {}
+          window.location.href = `destiny-color.html?type=${analysis.type}`;
+        } else {
+          // 膚色像素不足（太暗 / 沒對到臉）→ 提示重拍
+          statusBar.classList.remove('analyzing');
+          statusIcon.textContent = '⚠️';
+          statusText.textContent = '光線不足或未偵測到臉部，請重新拍攝';
+          faceGuide.classList.remove('scanning');
+          scanBeam.style.opacity = '0';
+          setTimeout(() => location.reload(), 2500);
+        }
+      }, 6000);
+    }
+  </script>
+</body>
+</html>
+

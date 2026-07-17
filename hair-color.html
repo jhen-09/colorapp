@@ -1,0 +1,1311 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>專屬髮色推薦 - 個人色彩鑑定 App</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* 主背景 */
+    body {
+      /* 移除硬編碼顏色，使用全域 style.css */
+    }
+
+    .editor-wrapper {
+      width: 100%;
+      display: flex; flex-direction: column; position: relative;
+    }
+
+    /* 頂部控制列 */
+    .editor-header {
+      padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
+    }
+    .btn-back {
+      width: 40px; height: 40px; background: #fff; border-radius: 50%;
+      display: flex; justify-content: center; align-items: center; color: var(--text-dark);
+      text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: all 0.3s;
+    }
+    .btn-reupload {
+      background: #fff; color: var(--text-dark); padding: 8px 16px; border-radius: 100px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); font-size: 13px; font-weight: 500; cursor: pointer;
+      border: none; display: flex; align-items: center; gap: 6px; transition: all 0.3s;
+    }
+    .btn-reupload:hover, .btn-back:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    .header-title { text-align: center; font-size: 16px; color: var(--text-dark); font-weight: 500; letter-spacing: 0.1em; }
+
+    /* 相片主視圖 (3:4) */
+    .photo-area {
+      flex: 1; display: flex; justify-content: center; align-items: center; padding: 0 20px 20px 20px;
+    }
+    .photo-frame {
+      width: 100%; max-width: 400px; aspect-ratio: 3/4; background: #eee;
+      border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      position: relative; overflow: hidden; border: 6px solid #fff;
+    }
+
+    /* 預設照片載入 */
+    .user-image {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url('https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80');
+      background-size: cover; background-position: center; transition: all 0.5s ease;
+    }
+
+    /* SVG 髮色面罩 */
+    .hair-mask-layer {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 5; pointer-events: none; mix-blend-mode: soft-light; transition: opacity 0.5s ease;
+    }
+    .hair-mask-dye { fill: #3D3A3F; transition: fill 0.3s ease; }
+
+    /* 重載特效 */
+    .scan-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 10;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      color: #fff; font-size: 14px; letter-spacing: 0.1em; opacity: 0; pointer-events: none; transition: 0.3s;
+    }
+    .scan-overlay.active { opacity: 1; }
+    .scan-line {
+      width: 100%; height: 4px; background: var(--accent-main); box-shadow: 0 0 10px var(--accent-main);
+      position: absolute; top: 0; left: 0; animation: scanPan 1s infinite alternate ease-in-out;
+    }
+    @keyframes scanPan { 0% { top: 0%; } 100% { top: 100%; } }
+
+    /* Three.js 粒子畫布 */
+    #threeCanvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -1; pointer-events: none;
+    }
+    .editor-wrapper { position: relative; z-index: 1; }
+
+    /* 底部選色器 — Glassmorphism Pro */
+    .editor-footer {
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border-radius: 32px 32px 0 0;
+      padding: 28px 0 44px 0;
+      box-shadow: 0 -2px 40px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9);
+      border-top: 1px solid rgba(255,255,255,0.6);
+      display: flex; flex-direction: column; align-items: center; z-index: 20;
+    }
+    .season-tag {
+      background: linear-gradient(135deg, rgba(242,132,130,0.15), rgba(255,182,160,0.2));
+      color: var(--accent-main);
+      padding: 7px 20px; border-radius: 100px; font-size: 13px;
+      letter-spacing: 0.12em; font-weight: 600; margin-bottom: 22px;
+      border: 1px solid rgba(242,132,130,0.25);
+      box-shadow: 0 4px 16px rgba(242,132,130,0.12);
+    }
+
+    /* 色系標題列 */
+    .palette-section-title {
+      font-size: 10px; letter-spacing: 0.25em; color: #b0a8a8;
+      text-transform: uppercase; margin: 4px 0 12px 0; width: 100%;
+      text-align: center;
+    }
+
+    .color-carousel {
+      width: 100%; display: flex; flex-wrap: wrap;
+      justify-content: center; gap: 14px 16px; padding: 0 20px 16px 20px;
+      align-items: flex-end;
+    }
+
+    /* 3D Glass Sphere 色票 */
+    .color-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 7px; cursor: pointer; flex-shrink: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .color-swatch {
+      width: 52px; height: 52px; border-radius: 50%;
+      position: relative; border: 2.5px solid rgba(255,255,255,0.9);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow:
+        0 4px 12px rgba(0,0,0,0.15),
+        inset 0 -4px 8px rgba(0,0,0,0.15),
+        inset 0 4px 8px rgba(255,255,255,0.35);
+    }
+    /* 球型高光 */
+    .color-swatch::before {
+      content: ''; position: absolute;
+      top: 8px; left: 10px;
+      width: 40%; height: 35%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, transparent 80%);
+      border-radius: 50%; pointer-events: none;
+    }
+    .color-item.active .color-swatch {
+      transform: translateY(-10px) scale(1.18);
+      box-shadow:
+        0 16px 32px rgba(0,0,0,0.2),
+        inset 0 -4px 10px rgba(0,0,0,0.2),
+        inset 0 4px 10px rgba(255,255,255,0.4),
+        0 0 0 3px var(--accent-main);
+    }
+    .color-item.active .color-swatch::after {
+      content: '✓'; position: absolute;
+      top: -6px; right: -6px;
+      background: linear-gradient(135deg, var(--accent-main), #f87171);
+      color: #fff; font-size: 9px; font-weight: 700;
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; justify-content: center; align-items: center;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(242,132,130,0.5);
+    }
+    .color-name {
+      font-size: 11px; color: #9a9090;
+      font-weight: 400; letter-spacing: 0.06em;
+      transition: all 0.3s; white-space: nowrap;
+      font-family: 'Noto Serif TC', serif;
+    }
+    .color-item.active .color-name {
+      color: var(--text-dark); font-weight: 600;
+      transform: translateY(-4px);
+      font-size: 12px;
+    }
+
+    /* 自訂調色鈕 — 彩虹漩渦 */
+    .custom-color-btn .color-swatch {
+      background: conic-gradient(
+        hsl(0,80%,65%), hsl(40,80%,65%), hsl(80,70%,60%),
+        hsl(160,70%,55%), hsl(200,75%,60%), hsl(260,75%,65%),
+        hsl(310,75%,65%), hsl(360,80%,65%)
+      );
+      animation: spinHue 4s linear infinite;
+    }
+    @keyframes spinHue {
+      from { filter: hue-rotate(0deg); }
+      to   { filter: hue-rotate(360deg); }
+    }
+    #nativeColorPicker {
+      position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; cursor: pointer;
+    }
+
+    /* 分隔線 */
+    .palette-divider {
+      width: calc(100% - 48px); height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,0,0,0.07), transparent);
+      margin: 8px 0;
+    }
+
+    /* 開發者切換 */
+    .dev-controls {
+      background: #f8f8f8; border: 1px dashed var(--accent-main); border-radius: 12px;
+      padding: 12px; margin: 0 24px 20px 24px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .dev-controls label { font-size: 12px; color: var(--accent-main); }
+    .dev-controls select { padding: 8px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); }
+
+    /* === 真實相機 Modal === */
+    .camera-modal {
+      position: fixed; inset: 0; background: #000; z-index: 999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: 0.4s ease;
+    }
+    .camera-modal.active { opacity: 1; pointer-events: auto; }
+    
+    #live-webcam {
+      width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+    }
+    .cam-close {
+      position: absolute; top: 30px; left: 30px; width: 44px; height: 44px;
+      background: rgba(0,0,0,0.5); border-radius: 50%; color: #fff; font-size: 24px;
+      display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10;
+    }
+    
+    /* 臉部導引框 */
+    .cam-guide {
+      position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+      width: 250px; height: 320px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.7);
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.4); pointer-events: none;
+    }
+    .cam-guide-text {
+      position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-size: 15px; letter-spacing: 0.1em; text-align: center; white-space: nowrap;
+    }
+
+    .shutter-wrapper {
+      position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
+      width: 80px; height: 80px; border: 3px solid #fff; border-radius: 50%;
+      display: flex; justify-content: center; align-items: center; cursor: pointer;
+    }
+    .shutter-btn {
+      width: 64px; height: 64px; background: #fff; border-radius: 50%; transition: 0.2s;
+    }
+    .shutter-wrapper:active .shutter-btn { transform: scale(0.9); }
+    
+    .flash-fx {
+      position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 1000;
+    }
+    .flash-fx.show { animation: cameraFlash 0.6s ease-out; }
+    @keyframes cameraFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+
+    /* ================= 現代美妝 App 皮膚 ================= */
+    body {
+      background:
+        radial-gradient(90% 60% at 50% 0%, rgba(240,205,195,0.28) 0%, transparent 60%),
+        #FBF8F6 !important;
+    }
+    #threeCanvas { display: none; } /* 拔掉粒子背景 */
+
+    .hair-studio {
+      display: grid; grid-template-columns: 1fr; gap: 22px;
+      width: 100%; max-width: 1080px; margin: 0 auto;
+    }
+    @media (min-width: 920px) {
+      .hair-studio { grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); align-items: start; }
+      .hair-stage { position: sticky; top: 24px; }
+    }
+    .hair-stage .photo-frame {
+      width: 100%; max-width: none; aspect-ratio: 3 / 4; height: auto;
+      border-radius: 24px; overflow: hidden;
+      box-shadow: 0 14px 40px rgba(70,50,45,0.10);
+      border: 1px solid rgba(43,39,36,0.05);
+    }
+    .ba-btn {
+      margin-top: 14px; width: 100%;
+      padding: 12px; border-radius: 100px; border: 1px solid rgba(43,39,36,0.10);
+      background: #fff; color: #5A514C; font-size: 14px; letter-spacing: 0.06em;
+      cursor: pointer; user-select: none; transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(70,50,45,0.06);
+    }
+    .ba-btn:active { background: #F4ECE8; transform: scale(0.99); }
+
+    .hair-panel { display: flex; flex-direction: column; gap: 16px; }
+    .panel-block {
+      background: #fff; border-radius: 20px; padding: 18px 20px;
+      border: 1px solid rgba(43,39,36,0.05);
+      box-shadow: 0 8px 26px rgba(70,50,45,0.06);
+    }
+    .panel-label {
+      font-size: 11.5px; letter-spacing: 0.22em; color: #A39A94;
+      text-transform: uppercase; margin-bottom: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px; justify-content: space-between;
+    }
+    #typeHairRecStrip {
+      background: #FAF3F0 !important; border: none !important; border-radius: 20px !important;
+      padding: 18px 20px !important; margin-bottom: 0 !important;
+      box-shadow: 0 8px 26px rgba(70,50,45,0.06);
+    }
+    .color-carousel { flex-wrap: wrap; overflow: visible; }
+
+    /* ===== Modern Beauty 外觀層（與命定色頁一致）===== */
+    body { background: #FBF8F6 !important; }
+    #threeCanvas { display: none !important; } /* 停用粒子背景 */
+    .page-title { color: #3A312B; letter-spacing: 0.06em; }
+    .photo-frame {
+      border-radius: 26px !important; overflow: hidden;
+      border: 1px solid #EFE7E1 !important;
+      box-shadow: 0 24px 70px rgba(90,65,50,0.10) !important;
+    }
+    .panel-block, #typeHairRecStrip {
+      border: 1px solid #EFE7E1 !important;
+      box-shadow: 0 12px 34px rgba(90,65,50,0.06) !important;
+    }
+    #typeHairRecStrip { background: #FAF1EF !important; }
+    .btn-pink-pill {
+      background: #E58E96 !important; border-radius: 100px !important;
+      box-shadow: 0 6px 18px rgba(229,142,150,0.35) !important;
+    }
+    .btn-pink-pill[style*="84a59d"] { background: #FFFFFF !important; color: #3A312B !important; border: 1px solid #EFE7E1 !important; box-shadow: 0 4px 14px rgba(90,65,50,0.06) !important; }
+    .ba-btn { border-radius: 100px !important; border: 1px solid #EFE7E1 !important; }
+    .panel-label { color: #A89C93 !important; }
+    input[type="range"] { accent-color: #E58E96; }
+    .main-header {
+      background: rgba(251,248,246,0.92) !important;
+      border-bottom: 1px solid #EFE7E1; box-shadow: none !important;
+    }
+    .desktop-nav a.active { color: #E58E96 !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Three.js 粒子背景 -->
+  <canvas id="threeCanvas"></canvas>
+
+  <button class="fixed-hamburger mobile-ui-only" onclick="toggleMenu()">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newaccount.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <!-- 電腦版頂部選單 (與 destiny-color 一致) -->
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html" class="active">髮色推薦</a>
+        <a href="newaccount.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <div class="content-wrapper">
+      <h1 class="page-title fade-in delay-1">專屬髮色渲染推薦</h1>
+      
+      <div class="hair-studio fade-in delay-2">
+      <!-- 左：照片舞台 -->
+      <div class="hair-stage">
+        <div class="photo-frame">
+        <div class="user-image" id="userPhoto"></div>
+
+        <!-- AI 髮色分割上色層（保留髮絲明暗的自然染色） -->
+        <canvas id="hairCanvas" style="position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none;"></canvas>
+
+        <svg class="hair-mask-layer" id="hairOverlay" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">
+          <!-- AI 智能框選模擬 -->
+          <path class="hair-mask-dye" id="hairDye" d="M150,0 C60,0 20,120 0,250 L0,400 L80,400 C80,300 100,200 150,180 C200,200 220,300 220,400 L300,400 L300,250 C280,120 240,0 150,0 Z" />
+        </svg>
+
+        <div class="scan-overlay" id="scanUI">
+          <div class="scan-line"></div>
+          <div style="font-size:32px; margin-bottom:12px;">🔍</div>
+          <div>正在分析相片膚色特徵...</div>
+          <div style="font-size:12px; opacity:0.7; margin-top:8px;">重新提取頭髮邊界邊緣</div>
+        </div>
+        </div>
+
+        <!-- 舞台工具列 -->
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button id="beforeAfterBtn" class="ba-btn" style="flex:1;"
+            onmousedown="toggleOriginal(true)" onmouseup="toggleOriginal(false)" onmouseleave="toggleOriginal(false)"
+            ontouchstart="toggleOriginal(true)" ontouchend="toggleOriginal(false)">👁 按住看原圖</button>
+          <button class="ba-btn" style="flex:1;" onclick="addToCompare()">🆚 加入比較</button>
+          <button class="ba-btn" style="flex:1;" onclick="downloadHairResult()">📥 下載成果</button>
+        </div>
+
+        <!-- 雙格比較區 -->
+        <div id="compareRow" style="display:none; margin-top:12px;">
+          <div style="font-size:11.5px; letter-spacing:0.18em; color:#A89C93; text-transform:uppercase; font-weight:600; margin-bottom:8px;">Compare · 髮色比較</div>
+          <div id="compareSlots" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"></div>
+        </div>
+      </div>
+
+      <!-- 右：控制面板 -->
+      <div class="hair-panel">
+        <!-- 本照片分析結果：每張新照片都會重新分析、重新推薦 -->
+        <div class="panel-block" id="hairAnalysisCard" style="display:none; background:#FAF1EF;">
+          <div class="panel-label">本照片分析結果</div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span id="haSkinDot" style="width:34px; height:34px; border-radius:50%; border:2.5px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.12); flex-shrink:0;"></span>
+            <div style="flex:1;">
+              <div style="font-size:15px; font-weight:600; color:#3A312B;" id="haTypeName">--</div>
+              <div style="font-size:11.5px; color:#A89C93;" id="haDetail">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-block">
+          <div class="panel-label">照片來源 <span style="font-weight:400; letter-spacing:0; text-transform:none;">已自動帶入檢測照片，可重新選擇</span></div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-pink-pill" style="margin-bottom:0; flex:1;" onclick="openCamera()">📷 拍攝</button>
+            <button class="btn-pink-pill" style="margin-bottom:0; flex:1; background:#84a59d;" onclick="triggerUpload()">📁 上傳照片</button>
+            <input type="file" id="fileUpload" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+          </div>
+        </div>
+
+        <div class="panel-block">
+          <div class="season-tag" id="seasonTag" style="margin:0 0 4px 0;">✨ 春季型 命定推薦髮色</div>
+        </div>
+
+      <div id="typeHairRecStrip" style="display:none; margin-bottom:14px; padding:12px 16px; background:rgba(255,255,255,0.55); border-radius:14px; border:1px solid rgba(255,255,255,0.6);">
+        <div style="font-size:12px; letter-spacing:0.12em; color:var(--text-muted); margin-bottom:10px;">✦ 依您的檢測結果（<span id="typeHairRecName">--</span>）專屬推薦</div>
+        <div id="typeHairRecColors" style="display:flex; gap:14px;"></div>
+      </div>
+
+        <div class="panel-block">
+          <div class="panel-label">推薦色盤 <span style="font-weight:400; letter-spacing:0; text-transform:none;">點擊即套用</span></div>
+          <div class="color-carousel" id="colorCarousel">
+            <!-- 動態色盤 -->
+          </div>
+        </div>
+
+        <div class="panel-block">
+          <div class="panel-label">染色強度
+            <span id="currentHairChip" style="display:none; align-items:center; gap:6px; font-weight:400; letter-spacing:0; text-transform:none;">
+              目前 <span id="currentHairDot" style="width:16px; height:16px; border-radius:50%; display:inline-block; vertical-align:-3px; border:1.5px solid rgba(255,255,255,0.9); box-shadow:0 1px 4px rgba(0,0,0,0.15);"></span>
+            </span>
+          </div>
+          <input type="range" id="hairIntensity" min="30" max="100" value="65" style="width:100%;"
+                 oninput="onHairIntensity(this.value)">
+          <div style="display:flex; justify-content:space-between; font-size:11px; color:#A39A94; margin-top:4px;">
+            <span>自然</span><span>飽和</span>
+          </div>
+        </div>
+
+        <details class="dev-controls" style="margin-top:4px;">
+          <summary>開發模擬：切換會員季型</summary>
+          <select id="seasonSelector" onchange="renderCarousel(this.value)" style="margin-top:8px; width:100%;">
+            <option value="spring">春季型會員 (預設)</option>
+            <option value="summer">夏季型會員</option>
+            <option value="autumn">秋季型會員</option>
+            <option value="winter">冬季型會員</option>
+          </select>
+        </details>
+      </div><!-- /hair-panel -->
+      </div><!-- /hair-studio -->
+    </div>
+  </main>
+
+  <!-- 真實相機介面 -->
+  <div class="camera-modal" id="cameraModal">
+    <div class="cam-close" onclick="closeCamera()">×</div>
+    <video id="live-webcam" autoplay playsinline></video>
+    
+    <div class="cam-guide">
+      <div class="cam-guide-text">請將頭部與頭髮對準虛線區域內<br><span style="font-size:12px; opacity:0.8;">拍攝後將自動為照片上色</span></div>
+    </div>
+
+    <div class="shutter-wrapper" onclick="takePhoto()">
+      <div class="shutter-btn"></div>
+    </div>
+
+    <div class="flash-fx" id="flashFx"></div>
+  </div>
+
+  <!-- 用於處理照片的隱藏畫布 -->
+  <canvas id="snapshotCanvas" style="display:none;"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="js/color-analysis.js"></script>
+  <script type="module">
+    // 專用髮絲分割模型（逐像素標出頭髮位置，比顏色比對準確一個量級）
+    (async () => {
+      try {
+        const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+        const fileset = await vision.FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+        window.hairSegmenter = await vision.ImageSegmenter.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/hair_segmenter/float32/1/hair_segmenter.tflite' },
+          runningMode: 'IMAGE',
+          outputCategoryMask: true,
+          outputConfidenceMasks: false,
+        });
+        console.log('✓ 髮絲分割模型已載入');
+      } catch (e) {
+        console.warn('髮絲分割模型載入失敗，將退回備援方法', e);
+      }
+    })();
+  </script>
+  <script>
+    function toggleMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    }
+
+    // === 色彩管理邏輯 ===
+    const hairColorData = {
+      spring: {
+        tag: "🌷 春季型 命定髮色",
+        accent: "#C8956B",
+        particleColor: 0xf5c8a0,
+        groups: [
+          { title: "✦ 奶茶系", colors: [
+            { name: "焦糖瑪奇朵", hex: "#9A6A46" },
+            { name: "蜜茶棕",     hex: "#A67B5B" },
+            { name: "亞麻奶茶",   hex: "#C4A882" },
+            { name: "燕麥拿鐵",   hex: "#D4C0A0" }
+          ]},
+          { title: "✦ 暖金系", colors: [
+            { name: "琥珀金棕",   hex: "#B8782A" },
+            { name: "暖銅橘",     hex: "#C4724A" },
+            { name: "杏桃棕",     hex: "#C8956B" },
+            { name: "日落栗",     hex: "#8F5830" }
+          ]}
+        ]
+      },
+      summer: {
+        tag: "🌸 夏季型 命定髮色",
+        accent: "#8B9DC3",
+        particleColor: 0xc8d8f0,
+        groups: [
+          { title: "✦ 霧感冷棕", colors: [
+            { name: "霧灰棕",   hex: "#8A7F79" },
+            { name: "冷萃茶棕", hex: "#6B6065" },
+            { name: "薰衣草灰", hex: "#9B95A8" },
+            { name: "珠光霧棕", hex: "#A09298" }
+          ]},
+          { title: "✦ 煙燻深色", colors: [
+            { name: "煙燻奶茶", hex: "#7A6A65" },
+            { name: "冷調藍黑", hex: "#3D3D4F" },
+            { name: "霧夜黑",   hex: "#3A3640" },
+            { name: "深邃可可", hex: "#5A4E58" }
+          ]}
+        ]
+      },
+      autumn: {
+        tag: "🍁 秋季型 命定髮色",
+        accent: "#A05A2C",
+        particleColor: 0xe8a870,
+        groups: [
+          { title: "✦ 深秋大地", colors: [
+            { name: "巧克力棕", hex: "#4A3326" },
+            { name: "摩卡棕",   hex: "#6A4535" },
+            { name: "紅茶棕",   hex: "#7A4030" },
+            { name: "深秋磚紅", hex: "#8B4040" }
+          ]},
+          { title: "✦ 橡木暖棕", colors: [
+            { name: "榛果棕",   hex: "#7A5535" },
+            { name: "焦糖栗子", hex: "#8B5025" },
+            { name: "暖栗棕",   hex: "#6B4028" },
+            { name: "琥珀橡木", hex: "#9A6035" }
+          ]}
+        ]
+      },
+      winter: {
+        tag: "❄️ 冬季型 命定髮色",
+        accent: "#6080B0",
+        particleColor: 0xa0c0f0,
+        groups: [
+          { title: "✦ 曜石深黑", colors: [
+            { name: "曜石黑",   hex: "#1A1820" },
+            { name: "藍黑棕",   hex: "#252535" },
+            { name: "深邃黑",   hex: "#151518" },
+            { name: "冷夜黑",   hex: "#202028" }
+          ]},
+          { title: "✦ 鋼鐵灰藍", colors: [
+            { name: "鈦銀灰",   hex: "#5A5A65" },
+            { name: "木炭灰",   hex: "#404048" },
+            { name: "冰河灰",   hex: "#707085" },
+            { name: "幽靈白棕", hex: "#8888A0" }
+          ]}
+        ]
+      }
+    };
+
+    const carousel = document.getElementById('colorCarousel');
+    const hairDye = document.getElementById('hairDye');
+
+    function selectColor(el, hexCode, isCustom = false) {
+      document.querySelectorAll('.color-item').forEach(e => e.classList.remove('active'));
+      el.classList.add('active');
+      if (!applyHairCanvasColor(hexCode)) {
+        document.getElementById('hairOverlay').style.display = '';
+        hairDye.setAttribute('fill', hexCode);
+      }
+      
+      // 若是手動調色，可以即時更新自訂盤上顯示的顏色名稱（HEX）
+      if(isCustom) {
+        el.querySelector('.color-name').textContent = hexCode.toUpperCase();
+      }
+    }
+
+    function renderCarousel(seasonKey) {
+      const data = hairColorData[seasonKey];
+      document.getElementById('seasonTag').textContent = data.tag;
+      // 更新 season-tag 顏色
+      document.getElementById('seasonTag').style.color = data.accent;
+      carousel.innerHTML = '';
+
+      // 1. 更新 Three.js 粒子顏色
+      if(window.particleSystem) updateParticleColor(data.particleColor);
+
+      // 2. 自由調色鈕
+      const customDiv = document.createElement('div');
+      customDiv.className = 'color-item custom-color-btn';
+      customDiv.innerHTML = `
+        <div class="color-swatch" style="overflow:hidden">
+          <input type="color" id="nativeColorPicker" value="#ff0000" oninput="handleCustomColor(this.value, this.parentElement.parentElement)">
+        </div>
+        <span class="color-name">無極限</span>
+      `;
+      carousel.appendChild(customDiv);
+
+      // 3. 分組插入色卡
+      let firstColorHex = null;
+      let firstColorItem = null;
+      data.groups.forEach((group, gi) => {
+        // 分隔標題
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = 'width:100%;text-align:center;font-size:10px;letter-spacing:0.2em;color:#b0a0a0;margin:6px 0 2px 0;font-family:"Noto Serif TC",serif;';
+        titleEl.textContent = group.title;
+        carousel.appendChild(titleEl);
+
+        group.colors.forEach((c, ci) => {
+          const div = document.createElement('div');
+          const isFirst = gi === 0 && ci === 0;
+          div.className = `color-item${isFirst ? ' active' : ''}`;
+          div.dataset.hex = c.hex;
+          div.innerHTML = `<div class="color-swatch" style="background:${c.hex}"></div><span class="color-name">${c.name}</span>`;
+          div.onclick = () => selectColor(div, c.hex);
+          carousel.appendChild(div);
+          if(isFirst) { firstColorHex = c.hex; firstColorItem = div; }
+        });
+
+        // 分隔線
+        if(gi < data.groups.length - 1) {
+          const divider = document.createElement('div');
+          divider.className = 'palette-divider';
+          carousel.appendChild(divider);
+        }
+      });
+
+      if(firstColorHex) hairDye.setAttribute('fill', firstColorHex);
+    }
+
+    function handleCustomColor(hexValue, parentEl) {
+      selectColor(parentEl, hexValue, true);
+    }
+
+
+
+    /* ============================================================
+     * AI 髮色分割上色（FaceMesh 定位 + 髮色種子分割 + color 混合）
+     * 1. FaceMesh 找髮際線 → 從髮際線上方採樣真實髮色種子
+     * 2. 全圖比對：Lab 距離接近種子且不在臉部範圍 → 髮罩
+     * 3. 羽化髮罩後用 'color' 混合模式上色 → 保留髮絲明暗光澤
+     * 失敗時退回髮圈幾何 → 再退回固定模板，逐層降級。
+     * ============================================================ */
+    let _hairModel = null; // { maskCanvas, W, H, photoImg }
+
+    // 量測照片舞台尺寸：必須量永遠可見的 userPhoto，
+    // 不能量 hairCanvas（初始 display:none → 量出 0×0，髮罩會建在空畫布上）
+    function _stageSize() {
+      const r = document.getElementById('userPhoto').getBoundingClientRect();
+      return { W: Math.max(2, Math.round(r.width)), H: Math.max(2, Math.round(r.height)) };
+    }
+
+    // 方法一：專用髮絲分割模型 → 髮罩
+    function buildHairMaskFromSegmenter(img) {
+      try {
+        const res = window.hairSegmenter.segment(img);
+        const cm = res.categoryMask;
+        const mw = cm.width, mh = cm.height;
+        let data;
+        try { data = cm.getAsUint8Array(); }
+        catch (e) { data = cm.getAsFloat32Array().map(v => v > 0.5 ? 1 : 0); }
+
+        const raw = document.createElement('canvas');
+        raw.width = mw; raw.height = mh;
+        const rctx = raw.getContext('2d');
+        const id = rctx.createImageData(mw, mh);
+        let cnt = 0;
+        for (let i = 0; i < mw * mh; i++) {
+          const hair = data[i] === 1 ? 255 : 0; // category 1 = 頭髮
+          if (hair) cnt++;
+          id.data[i*4] = 255; id.data[i*4+1] = 255; id.data[i*4+2] = 255; id.data[i*4+3] = hair;
+        }
+        cm.close && cm.close();
+        if (cnt < mw * mh * 0.008) return false; // 幾乎沒偵測到頭髮
+        rctx.putImageData(id, 0, 0);
+
+        // 換算到顯示座標（cover）並羽化邊緣
+        const { W, H } = _stageSize();
+        const s = Math.max(W / mw, H / mh), cw = W / s, ch = H / s;
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = W; maskCanvas.height = H;
+        const mctx = maskCanvas.getContext('2d');
+        mctx.filter = 'blur(4px)';
+        mctx.drawImage(raw, (mw - cw) / 2, (mh - ch) / 2, cw, ch, 0, 0, W, H);
+
+        _hairModel = { maskCanvas, W, H, photoImg: img };
+        console.log('✓ 髮絲分割成功，頭髮像素占比', (cnt / (mw * mh) * 100).toFixed(1) + '%');
+        return true;
+      } catch (e) {
+        console.warn('髮絲分割推論失敗', e);
+        return false;
+      }
+    }
+
+    function _lab(r, g, b) {
+      let [rr, gg, bb] = [r/255, g/255, b/255].map(v => v > 0.04045 ? Math.pow((v+0.055)/1.055, 2.4) : v/12.92);
+      const x = (rr*0.4124 + gg*0.3576 + bb*0.1805) / 0.95047;
+      const y = rr*0.2126 + gg*0.7152 + bb*0.0722;
+      const z = (rr*0.0193 + gg*0.1192 + bb*0.9505) / 1.08883;
+      const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787*t + 16/116;
+      return [116*f(y)-16, 500*(f(x)-f(y)), 200*(f(y)-f(z))];
+    }
+
+    async function processHairPhoto(dataUrl) {
+      const img = await new Promise((res, rej) => {
+        const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl;
+      });
+
+      reanalyzeForHair(img); // 每張新照片都重新分析膚色 → 重新推薦（非阻塞）
+
+      // 方法一：專用髮絲分割模型（最準確）
+      if (window.hairSegmenter && buildHairMaskFromSegmenter(img)) {
+        _autoApplyHair();
+        return;
+      }
+      // 方法二以下：FaceMesh 種子分割 → 髮圈幾何 → 固定模板
+      const fm = _getHairFM();
+      let lm = null;
+      if (fm) {
+        const results = await Promise.race([
+          new Promise(resolve => { fm.onResults(r => resolve(r)); fm.send({ image: img }).catch(() => resolve(null)); }),
+          new Promise(resolve => setTimeout(() => resolve(null), 4500)),
+        ]);
+        lm = results && results.multiFaceLandmarks && results.multiFaceLandmarks[0];
+      }
+      if (!lm) { _hairModel = null; document.getElementById('hairCanvas').style.display = 'none'; return; }
+
+      const ok = buildHairMask(img, lm);
+      if (ok) { _autoApplyHair(); }
+      if (!ok) {
+        _hairModel = null;
+        document.getElementById('hairCanvas').style.display = 'none';
+        fitHairToFace(dataUrl); // 退回髮圈幾何
+      }
+    }
+
+    function buildHairMask(img, lm) {
+      const { W, H } = _stageSize();
+
+      // 照片以 cover 繪入工作 canvas（與顯示一致）
+      const work = document.createElement('canvas');
+      work.width = W; work.height = H;
+      const wctx = work.getContext('2d', { willReadFrequently: true });
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const s = Math.max(W/iw, H/ih), cw = W/s, ch = H/s;
+      wctx.drawImage(img, (iw-cw)/2, (ih-ch)/2, cw, ch, 0, 0, W, H);
+      const pix = wctx.getImageData(0, 0, W, H).data;
+
+      const P = i => ({ x: (lm[i].x*iw - (iw-cw)/2) * s, y: (lm[i].y*ih - (ih-ch)/2) * s });
+      const top = P(10), chin = P(152);
+      const faceH = Math.hypot(top.x - chin.x, top.y - chin.y);
+      const faceW = Math.hypot(P(454).x - P(234).x, P(454).y - P(234).y);
+      const cx = (top.x + chin.x)/2, cy = (top.y + chin.y)/2;
+
+      // ---- 臉部遮罩（外擴 8%，避免染到皮膚）----
+      const OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+      const faceMaskC = document.createElement('canvas');
+      faceMaskC.width = W; faceMaskC.height = H;
+      const fctx = faceMaskC.getContext('2d', { willReadFrequently: true });
+      fctx.fillStyle = '#fff';
+      fctx.beginPath();
+      OVAL.forEach((idx, k) => {
+        const p = P(idx);
+        const ex = cx + (p.x - cx) * 1.08, ey = cy + (p.y - cy) * 1.08;
+        k === 0 ? fctx.moveTo(ex, ey) : fctx.lineTo(ex, ey);
+      });
+      fctx.closePath(); fctx.fill();
+      const facePix = fctx.getImageData(0, 0, W, H).data;
+
+      // ---- 髮色種子：髮際線上方 5 個取樣點 ----
+      const HTOP = [21, 54, 10, 284, 251];
+      const seeds = [];
+      for (const idx of HTOP) {
+        const p = P(idx);
+        const sx = Math.round(cx + (p.x - cx) * 1.18);
+        const sy = Math.round(cy + (p.y - cy) * 1.18 - faceH * 0.04);
+        let sr = 0, sg = 0, sb = 0, n = 0;
+        for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+          const X = sx + dx, Y = sy + dy;
+          if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+          const i = (Y * W + X) * 4;
+          sr += pix[i]; sg += pix[i+1]; sb += pix[i+2]; n++;
+        }
+        if (n > 20) seeds.push(_lab(sr/n, sg/n, sb/n));
+      }
+      if (seeds.length < 2) return false;
+
+      // 種子若太亮（採到天花板/背景光）剔除
+      const validSeeds = seeds.filter(s2 => s2[0] < 88);
+      if (validSeeds.length < 2) return false;
+
+      // ---- 建立髮罩：Lab 距離 < 門檻、不在臉內、限制在頭部範圍 ----
+      const mask = new Uint8ClampedArray(W * H);
+      const x0 = Math.max(0, Math.round(cx - faceW * 1.7)), x1 = Math.min(W, Math.round(cx + faceW * 1.7));
+      const y1 = Math.min(H, Math.round(chin.y + faceH * 0.25));
+      const TH = 17; // Lab 距離門檻
+      for (let y = 0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const i = (y * W + x) * 4;
+          if (facePix[i + 3] > 0 && facePix[i] > 0) continue; // 臉內跳過
+          const L = _lab(pix[i], pix[i+1], pix[i+2]);
+          for (const sd of validSeeds) {
+            const d = Math.hypot(L[0]-sd[0], L[1]-sd[1], L[2]-sd[2]);
+            if (d < TH) { mask[y * W + x] = 255; break; }
+          }
+        }
+      }
+
+      // 髮罩覆蓋率檢查（太少 = 分割失敗）
+      let cnt = 0; for (let k = 0; k < mask.length; k++) if (mask[k]) cnt++;
+      if (cnt < W * H * 0.015) return false;
+
+      // ---- 羽化髮罩 ----
+      const rawC = document.createElement('canvas');
+      rawC.width = W; rawC.height = H;
+      const rctx = rawC.getContext('2d');
+      const mImg = rctx.createImageData(W, H);
+      for (let k = 0; k < mask.length; k++) {
+        mImg.data[k*4] = 255; mImg.data[k*4+1] = 255; mImg.data[k*4+2] = 255;
+        mImg.data[k*4+3] = mask[k];
+      }
+      rctx.putImageData(mImg, 0, 0);
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = W; maskCanvas.height = H;
+      const mctx = maskCanvas.getContext('2d');
+      mctx.filter = 'blur(5px)';
+      mctx.drawImage(rawC, 0, 0);
+
+      _hairModel = { maskCanvas, W, H, photoImg: img };
+      return true;
+    }
+
+    // Before/After：按住暫時隱藏染色層
+    function toggleOriginal(showOriginal) {
+      const c = document.getElementById('hairCanvas');
+      if (!c || !_hairModel) return;
+      c.style.visibility = showOriginal ? 'hidden' : 'visible';
+    }
+
+    // 髮罩就緒後自動套用：已選色就用已選色，否則用專屬推薦第一色
+    function _autoApplyHair() {
+      if (_lastHairHex) { applyHairCanvasColor(_lastHairHex); return; }
+      const t = currentHairType || localStorage.getItem('userColorType');
+      const rec = t && typeHairRecs[t];
+      if (rec) { applyHairCanvasColor(rec.colors[0][1]); return; }
+      // 沒有檢測結果 → 用目前輪播第一個顏色
+      const first = document.querySelector('#colorCarousel .color-item[data-hex]');
+      if (first) applyHairCanvasColor(first.dataset.hex);
+    }
+
+    // 上色：photo → (mask ∩ hex) 以 color 混合（保留髮絲明暗）+ soft-light 增豔
+    let _lastHairHex = null;
+    function onHairIntensity(v) {
+      if (_lastHairHex) applyHairCanvasColor(_lastHairHex);
+    }
+    function applyHairCanvasColor(hex) {
+      if (!_hairModel) return false;
+      _lastHairHex = hex;
+      const slider = document.getElementById('hairIntensity');
+      const strength = slider ? (parseInt(slider.value, 10) / 100) : 0.85;
+      // 目前髮色標示
+      const chip = document.getElementById('currentHairChip');
+      if (chip) { chip.style.display = 'inline-flex'; document.getElementById('currentHairDot').style.backgroundColor = hex; }
+      const { maskCanvas, W, H, photoImg } = _hairModel;
+      const canvas = document.getElementById('hairCanvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // 底：照片本體（cover）
+      const iw = photoImg.naturalWidth, ih = photoImg.naturalHeight;
+      const s = Math.max(W/iw, H/ih), cw = W/s, ch = H/s;
+      ctx.drawImage(photoImg, (iw-cw)/2, (ih-ch)/2, cw, ch, 0, 0, W, H);
+
+      // 色層 = 髮罩 ∩ 純色
+      const tint = document.createElement('canvas');
+      tint.width = W; tint.height = H;
+      const tctx = tint.getContext('2d');
+      tctx.drawImage(maskCanvas, 0, 0);
+      tctx.globalCompositeOperation = 'source-in';
+      tctx.fillStyle = hex;
+      tctx.fillRect(0, 0, W, H);
+
+      // color 混合：換色相/彩度、保留明度（髮絲層次不會被蓋平）
+      // 自然染色配方：color 混合壓低（保留原髮色的層次變化），
+      // soft-light 補光澤。全強度也不會蓋死原本髮絲的深淺
+      ctx.globalCompositeOperation = 'color';
+      ctx.globalAlpha = 0.55 * strength;
+      ctx.drawImage(tint, 0, 0);
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.globalAlpha = 0.45 * strength;
+      ctx.drawImage(tint, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+
+      canvas.style.display = 'block';
+      document.getElementById('hairOverlay').style.display = 'none'; // 隱藏舊 SVG 層
+      return true;
+    }
+
+    /* ===== AI 髮區對位（MediaPipe FaceMesh）=====
+       以臉部輪廓上緣特徵點建構「髮圈」區域：
+       內緣 = 髮際線（臉輪廓上半），外緣 = 由臉中心向外放大延伸，
+       染色層就會落在真實頭髮位置，不再是固定模板。 */
+    let _hairFM = null, _hairBusy = false;
+    function _getHairFM() {
+      if (_hairFM) return _hairFM;
+      if (typeof FaceMesh === 'undefined') return null;
+      _hairFM = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+      _hairFM.setOptions({ staticImageMode: true, maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5 });
+      return _hairFM;
+    }
+
+    // 臉輪廓上半（右耳→額頭→左耳）
+    const HAIRLINE = [454,356,389,251,284,332,297,338,10,109,67,103,54,21,162,127,234];
+
+    async function fitHairToFace(dataUrl) {
+      const fm = _getHairFM();
+      if (!fm || _hairBusy) return;
+      _hairBusy = true;
+      try {
+        const img = await new Promise((res, rej) => {
+          const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl;
+        });
+        const results = await Promise.race([
+          new Promise(resolve => { fm.onResults(r => resolve(r)); fm.send({ image: img }).catch(() => resolve(null)); }),
+          new Promise(resolve => setTimeout(() => resolve(null), 4500)),
+        ]);
+        const lm = results && results.multiFaceLandmarks && results.multiFaceLandmarks[0];
+        if (!lm) return; // 偵測不到 → 沿用預設模板
+
+        const svg = document.getElementById('hairOverlay');
+        const { W, H } = _stageSize();
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+        // 照片以 cover 顯示 → 特徵點換算畫面座標
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        const s = Math.max(W / iw, H / ih);
+        const offX = (W - iw * s) / 2, offY = (H - ih * s) / 2;
+        const P = i => ({ x: lm[i].x * iw * s + offX, y: lm[i].y * ih * s + offY });
+
+        // 臉中心與尺寸
+        const top = P(10), chin = P(152);
+        const cx = (top.x + chin.x) / 2, cy = (top.y + chin.y) / 2;
+        const faceH = Math.hypot(top.x - chin.x, top.y - chin.y);
+
+        const inner = HAIRLINE.map(P);
+        // 外緣：向外放大 1.45 倍、頭頂再往上抬（頭髮厚度）
+        const outer = inner.map(p => {
+          const dx = p.x - cx, dy = p.y - cy;
+          return { x: cx + dx * 1.45, y: cy + dy * 1.45 - faceH * 0.10 };
+        });
+
+        const pts = outer.concat(inner.slice().reverse());
+        let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} `;
+        for (let i = 1; i < pts.length; i++) d += `L ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)} `;
+        document.getElementById('hairDye').setAttribute('d', d + 'Z');
+      } catch (e) {
+        console.warn('髮區對位失敗，沿用預設模板', e);
+      } finally { _hairBusy = false; }
+    }
+
+    // 12 型 → 專屬髮色推薦（3 色）
+    const typeHairRecs = {
+      "light-spring":  { zh: "亮春型", colors: [["蜂蜜茶棕","#A9744F"],["奶茶金棕","#B98A5E"],["亮栗棕","#8C5A3A"]] },
+      "warm-spring":   { zh: "暖春型", colors: [["焦糖棕","#955E34"],["蜜糖銅棕","#A26438"],["暖亞麻","#B08355"]] },
+      "bright-spring": { zh: "豔春型", colors: [["深茶棕","#6B4226"],["紅棕","#7E4633"],["黑茶","#4A342A"]] },
+      "light-summer":  { zh: "亮夏型", colors: [["亞麻灰棕","#8C7A6B"],["霧感奶棕","#9A8474"],["淺灰棕","#7E6E63"]] },
+      "cool-summer":   { zh: "冷夏型", colors: [["冷霧棕","#6E5D52"],["黑茶棕","#52463E"],["灰紫棕","#6B5A60"]] },
+      "soft-summer":   { zh: "柔夏型", colors: [["霧灰棕","#75655C"],["冷奶茶","#8A7668"],["灰亞麻","#837468"]] },
+      "soft-autumn":   { zh: "柔秋型", colors: [["奶茶棕","#8D6E56"],["霧感摩卡","#7C614C"],["亞麻棕","#97795D"]] },
+      "warm-autumn":   { zh: "暖秋型", colors: [["紅銅棕","#7C4A2E"],["深焦糖","#6E4526"],["栗子棕","#5F3D28"]] },
+      "deep-autumn":   { zh: "深秋型", colors: [["深巧克力","#4A3120"],["黑棕","#3B2A1E"],["深紅棕","#52301F"]] },
+      "bright-winter": { zh: "豔冬型", colors: [["純黑","#1C1A1A"],["藍黑","#1E2230"],["深黑棕","#2E2620"]] },
+      "cool-winter":   { zh: "冷冬型", colors: [["藍黑","#1B2030"],["冷黑棕","#2B2622"],["深灰黑","#262626"]] },
+      "deep-winter":   { zh: "深冬型", colors: [["極致黑","#151515"],["紫黑","#241C2A"],["黑棕","#2A211C"]] },
+    };
+
+    function renderTypeHairRecs(overrideType) {
+      const t = overrideType || currentHairType || localStorage.getItem('userColorType');
+      const rec = t && typeHairRecs[t];
+      if (!rec) return;
+      document.getElementById('typeHairRecName').textContent = rec.zh;
+      document.getElementById('typeHairRecColors').innerHTML = rec.colors.map(([name, hex]) => `
+        <div onclick="selectColor(this, '${hex}')" style="display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;">
+          <div style="width:40px; height:40px; border-radius:50%; background:${hex}; border:2.5px solid rgba(255,255,255,0.9); box-shadow:0 3px 8px rgba(0,0,0,0.15);"></div>
+          <span style="font-size:11px; color:var(--text-muted);">${name}</span>
+        </div>`).join('');
+      document.getElementById('typeHairRecStrip').style.display = 'block';
+    }
+    renderTypeHairRecs();
+
+    /* ===== 每張新照片重新分析膚色 → 重新推薦髮色 ===== */
+    var currentHairType = localStorage.getItem('userColorType') || null; // var 提升避免 TDZ：renderTypeHairRecs 在宣告前就會被呼叫
+
+    async function reanalyzeForHair(img) {
+      if (typeof analyzeSkinColorAI !== 'function') return;
+      try {
+        const analysis = await analyzeSkinColorAI(img, { fullScan: true });
+        const card = document.getElementById('hairAnalysisCard');
+        if (!analysis) {
+          card.style.display = 'block';
+          document.getElementById('haTypeName').textContent = '無法分析此照片';
+          document.getElementById('haDetail').textContent = '偵測不到足夠膚色，沿用上次檢測的推薦';
+          document.getElementById('haSkinDot').style.background = '#E8E1DB';
+          return;
+        }
+        const d = analysis.debug;
+        currentHairType = analysis.type;
+        // 更新結果卡
+        card.style.display = 'block';
+        document.getElementById('haSkinDot').style.background = d.avgHex;
+        document.getElementById('haTypeName').textContent =
+          (typeHairRecs[analysis.type] ? typeHairRecs[analysis.type].zh : analysis.type) +
+          (d.warning ? '（光線不佳，僅供參考）' : '');
+        document.getElementById('haDetail').textContent =
+          `膚色 ${d.avgHex.toUpperCase()} · ${d.axes.undertone} · ${d.axes.depth}`;
+        // 重新推薦：專屬推薦條 + 季節輪播 + 自動套第一色
+        renderTypeHairRecs(analysis.type);
+        const season = analysis.type.split('-')[1];
+        if (hairColorData[season]) {
+          const sel = document.getElementById('seasonSelector');
+          if (sel) sel.value = season;
+          renderCarousel(season);
+        }
+        const rec = typeHairRecs[analysis.type];
+        if (rec && _hairModel) applyHairCanvasColor(rec.colors[0][1]);
+        console.log('髮色頁重新分析:', analysis.type, d.avgHex, d.method);
+      } catch (e) { console.warn('重新分析失敗', e); }
+    }
+
+    /* ===== 下載染後成果 ===== */
+    function downloadHairResult() {
+      const canvas = document.getElementById('hairCanvas');
+      if (!_hairModel || canvas.style.display === 'none') {
+        alert('請先選擇一個髮色，染色完成後即可下載。');
+        return;
+      }
+      const a = document.createElement('a');
+      a.download = `hair-color-${(_lastHairHex || '').replace('#','')}.jpg`;
+      a.href = canvas.toDataURL('image/jpeg', 0.92);
+      a.click();
+    }
+
+    /* ===== 雙格比較：最多兩格，第三次取代最舊 ===== */
+    const _compareShots = [];
+    function addToCompare() {
+      const canvas = document.getElementById('hairCanvas');
+      if (!_hairModel || canvas.style.display === 'none') {
+        alert('請先選擇一個髮色再加入比較。');
+        return;
+      }
+      const activeName = document.querySelector('.color-item.active .color-name');
+      _compareShots.push({
+        src: canvas.toDataURL('image/jpeg', 0.85),
+        label: (activeName ? activeName.textContent : (_lastHairHex || '')).trim(),
+      });
+      if (_compareShots.length > 2) _compareShots.shift();
+      const row = document.getElementById('compareRow');
+      row.style.display = 'block';
+      document.getElementById('compareSlots').innerHTML = _compareShots.map(s2 => `
+        <figure style="margin:0;">
+          <img src="${s2.src}" style="width:100%; border-radius:16px; border:1px solid #EFE7E1; display:block;">
+          <figcaption style="text-align:center; font-size:12px; color:#A89C93; margin-top:6px;">${s2.label}</figcaption>
+        </figure>`).join('');
+    }
+
+    // ===== 自動帶入檢測照片：測驗拍過就不用重傳 =====
+    (function autoLoadAnalyzedPhoto() {
+      const photo = localStorage.getItem('userCapturedPhoto');
+      if (!photo) return;
+      window.addEventListener('DOMContentLoaded', () => {
+        userPhoto.style.backgroundImage = `url(${photo})`;
+        hairDye.setAttribute('fill', 'transparent');
+        // 等髮絲分割模型載入（最多 5 秒），沒等到就直接跑備援鏈
+        let tries = 0;
+        const timer = setInterval(() => {
+          tries++;
+          if (window.hairSegmenter || tries >= 10) {
+            clearInterval(timer);
+            processHairPhoto(photo);
+          }
+        }, 500);
+      });
+    })();
+
+    // 依最近一次檢測結果預選季節（全站個人化）
+    (function presetSeasonFromResult() {
+      const t = localStorage.getItem('userColorType'); // 例如 soft-summer
+      if (!t) return;
+      const season = t.split('-')[1];
+      if (hairColorData[season]) {
+        const sel = document.getElementById('seasonSelector');
+        if (sel) sel.value = season;
+        renderCarousel(season);
+        return true;
+      }
+    })() || renderCarousel('spring');
+
+    // === 真實相機與拍照邏輯 ===
+    let videoStream = null;
+    const webcam = document.getElementById('live-webcam');
+    const modal = document.getElementById('cameraModal');
+    const userPhoto = document.getElementById('userPhoto');
+
+    async function openCamera() {
+      modal.classList.add('active');
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        webcam.srcObject = videoStream;
+      } catch (err) {
+        alert("無法啟動相機！請允許視訊權限。");
+        closeCamera();
+      }
+    }
+
+    function closeCamera() {
+      modal.classList.remove('active');
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+    }
+
+    function takePhoto() {
+      // 1. 閃光特效
+      const flash = document.getElementById('flashFx');
+      flash.classList.remove('show');
+      void flash.offsetWidth; // trigger reflow
+      flash.classList.add('show');
+
+      // 2. 使用 Canvas 擷取畫面
+      const canvas = document.getElementById('snapshotCanvas');
+      canvas.width = webcam.videoWidth;
+      canvas.height = webcam.videoHeight;
+      const ctx = canvas.getContext('2d');
+      // 處理前鏡頭的鏡像翻轉
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+      
+      const photoDataURL = canvas.toDataURL('image/jpeg');
+
+      // 3. 關閉相機並模擬 AI 載入
+      setTimeout(() => {
+        closeCamera();
+        
+        // 將剛拍下的真實照片塞回編輯器中！
+        userPhoto.style.backgroundImage = `url(${photoDataURL})`;
+        hairDye.setAttribute('fill', 'transparent'); 
+        processHairPhoto(photoDataURL); // AI 髮色分割
+        
+        const scanUI = document.getElementById('scanUI');
+        scanUI.classList.add('active');
+
+        // 等待 AI 「假處理」完畢恢復色彩
+        setTimeout(() => {
+          scanUI.classList.remove('active');
+          const firstColorItem = document.querySelectorAll('.color-item')[1]; // 0是客製化, 1是第一個命定色
+          if(firstColorItem) firstColorItem.click();
+        }, 2000);
+      }, 300); // 等待一點閃光感受
+    }
+
+    // === 自行上傳照片邏輯 ===
+    function triggerUpload() {
+      document.getElementById('fileUpload').click();
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const photoDataURL = e.target.result;
+          
+          // 將上傳的首圖塞入編輯器並暫停渲染髮色
+          userPhoto.style.backgroundImage = `url(${photoDataURL})`;
+          hairDye.setAttribute('fill', 'transparent'); 
+          processHairPhoto(photoDataURL); // AI 髮色分割
+          
+          const scanUI = document.getElementById('scanUI');
+          scanUI.classList.add('active');
+
+          // 模擬分析載入
+          setTimeout(() => {
+            scanUI.classList.remove('active');
+            const firstColorItem = document.querySelectorAll('.color-item')[1];
+            if(firstColorItem) firstColorItem.click();
+          }, 2000);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  </script>
+
+  <script>
+    // === Three.js 季節粒子背景（現代版面已停用，節省效能）===
+    (function() {
+      return; // 拔掉背景動畫
+      const canvas = document.getElementById('threeCanvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 5;
+
+      // 粒子幾何體
+      const COUNT = 180;
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array(COUNT * 3);
+      const speeds = [];
+      for (let i = 0; i < COUNT; i++) {
+        pos[i*3]   = (Math.random() - 0.5) * 12;
+        pos[i*3+1] = (Math.random() - 0.5) * 18;
+        pos[i*3+2] = (Math.random() - 0.5) * 4;
+        speeds.push(0.003 + Math.random() * 0.008);
+      }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+      let currentColor = new THREE.Color(0xf5c8a0);
+      const mat = new THREE.PointsMaterial({
+        color: currentColor, size: 0.06,
+        transparent: true, opacity: 0.55,
+        sizeAttenuation: true
+      });
+
+      const particles = new THREE.Points(geo, mat);
+      scene.add(particles);
+      window.particleSystem = particles;
+
+      // 更新粒子顏色
+      window.updateParticleColor = function(hexColor) {
+        const target = new THREE.Color(hexColor);
+        let steps = 0;
+        const interval = setInterval(() => {
+          mat.color.lerp(target, 0.08);
+          steps++;
+          if (steps > 40) clearInterval(interval);
+        }, 16);
+      };
+
+      // 動畫迴圈
+      function animate() {
+        requestAnimationFrame(animate);
+        const pos = geo.attributes.position.array;
+        for (let i = 0; i < COUNT; i++) {
+          pos[i*3+1] += speeds[i];
+          if (pos[i*3+1] > 9) pos[i*3+1] = -9;
+        }
+        geo.attributes.position.needsUpdate = true;
+        particles.rotation.y += 0.0008;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      });
+    })();
+  </script>
+</body>
+</html>
+

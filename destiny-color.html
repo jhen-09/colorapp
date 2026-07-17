@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>我的命定色 - 個人色彩鑑定 App</title>
+  <meta name="description" content="查看您的十二型命定色分析結果與專屬搭配建議">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    .result-section {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      width: 100%;
+    }
+    
+    .destiny-card {
+      text-align: center;
+      padding: 48px 24px;
+      border-radius: 20px;
+    }
+    
+    .season-badge {
+      display: inline-block;
+      padding: 6px 20px;
+      color: #fff;
+      border-radius: 100px;
+      font-size: 13px;
+      letter-spacing: 0.15em;
+      margin-bottom: 20px;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 600;
+      transition: all 0.4s ease;
+    }
+    .badge-spring { background: #E89E9F; box-shadow: 0 4px 12px rgba(232,158,159,0.3); }
+    .badge-summer { background: #84A59D; box-shadow: 0 4px 12px rgba(132,165,157,0.3); }
+    .badge-autumn { background: #DDA77B; box-shadow: 0 4px 12px rgba(221,167,123,0.3); }
+    .badge-winter { background: #6E7B91; box-shadow: 0 4px 12px rgba(110,123,145,0.3); }
+    
+    .result-title {
+      font-size: clamp(28px, 6vw, 36px);
+      color: var(--text-dark);
+      margin-bottom: 16px;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+    }
+    
+    .result-desc {
+      color: var(--text-muted);
+      line-height: 2;
+      font-size: 15px;
+      max-width: 600px;
+      margin: 0 auto 40px auto;
+      text-align: justify;
+      font-weight: 400;
+    }
+    
+    .palette-container {
+      margin-top: 32px;
+    }
+    
+    .palette-title {
+      font-size: 16px;
+      color: var(--text-dark);
+      margin-bottom: 24px;
+      text-align: center;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+    }
+    
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .color-swatch-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* 3D 玻璃球色票 */
+    .color-swatch {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 2.5px solid rgba(255,255,255,0.9);
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow:
+        0 6px 16px rgba(0,0,0,0.15),
+        inset 0 -4px 8px rgba(0,0,0,0.12),
+        inset 0 4px 10px rgba(255,255,255,0.4);
+    }
+    .color-swatch::before {
+      content: ''; position: absolute;
+      top: 18%; left: 20%; width: 38%; height: 32%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.75) 0%, transparent 80%);
+      border-radius: 50%; pointer-events: none;
+    }
+    .color-swatch-wrapper:hover .color-swatch {
+      transform: translateY(-8px) scale(1.18);
+      box-shadow:
+        0 16px 32px rgba(0,0,0,0.2),
+        inset 0 -4px 10px rgba(0,0,0,0.15),
+        inset 0 4px 12px rgba(255,255,255,0.5);
+    }
+    .color-name {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      font-family: 'Noto Serif TC', serif;
+    }
+
+    /* 搭配建議區塊 */
+    .recommendation-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    @media (min-width: 768px) {
+      .recommendation-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .rec-card {
+      align-items: flex-start;
+      padding: 32px;
+      height: 100%;
+    }
+    .rec-icon {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 600;
+      color: rgba(200, 160, 140, 0.4);
+      margin-bottom: 16px;
+      position: relative;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-block;
+    }
+    .rec-icon::after {
+      content: ''; position: absolute; left: 0; bottom: -4px; width: 24px; height: 1.5px; background: var(--accent-main);
+      transition: width 0.5s ease;
+    }
+    .rec-card:hover .rec-icon {
+      color: var(--accent-main); transform: translateX(8px);
+    }
+    .rec-card:hover .rec-icon::after {
+      width: 100%;
+    }
+    .rec-title { font-size: 18px; color: var(--text-dark); margin-bottom: 12px; font-weight: 500; }
+    .rec-text { font-size: 14px; color: var(--text-muted); line-height: 1.8; text-align: justify; }
+
+    /* 開發者模擬與過渡效果 */
+    .dev-controls {
+      background: rgba(255,255,255,0.7);
+      border: 1px dashed var(--accent-main);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .dev-controls label { font-size: 13px; color: var(--accent-main); font-weight: 500; }
+    .dev-controls select {
+      padding: 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);
+      outline: none; font-family: inherit; font-size: 14px;
+    }
+    
+    #dynamic-content {
+      transition: opacity 0.4s ease;
+    }
+
+    /* 命定色卡片 — 流光邊框 */
+    @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+    .destiny-card {
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      position: relative;
+    }
+    .destiny-card::after {
+      content: '';
+      position: absolute; inset: -2px;
+      border-radius: 22px;
+      background: conic-gradient(
+        from var(--angle),
+        rgba(242,132,130,0.6), rgba(246,189,96,0.4),
+        rgba(132,165,157,0.5), rgba(74,93,138,0.5),
+        rgba(242,132,130,0.6)
+      );
+      z-index: -1;
+      animation: borderSpin 6s linear infinite;
+    }
+    @keyframes borderSpin {
+      to { --angle: 360deg; }
+    }
+
+    /* ===== 個人化升級區 ===== */
+
+    /* 本人照片 + 膚色票 */
+    .destiny-hero {
+      display: flex; flex-direction: column; align-items: center; gap: 20px;
+      margin-bottom: 8px;
+    }
+    .hero-photo-wrap { position: relative; display: none; }
+    .hero-photo {
+      width: 128px; height: 128px; border-radius: 50%;
+      object-fit: cover; display: block;
+      border: 4px solid #fff;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    }
+    .hero-photo-ring {
+      position: absolute; inset: -7px; border-radius: 50%;
+      border: 2.5px solid var(--accent-main); /* JS 會換成使用者膚色 */
+      opacity: 0.85;
+    }
+    .skin-chip {
+      position: absolute; bottom: -6px; right: -14px;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(6px);
+      border: 1px solid rgba(0,0,0,0.06); border-radius: 100px;
+      padding: 5px 12px 5px 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .skin-chip-dot { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.9); box-shadow: inset 0 -2px 4px rgba(0,0,0,0.12); }
+    .skin-chip-hex { font-size: 11px; letter-spacing: 0.08em; color: var(--text-muted); font-family: 'Cormorant Garamond', serif; font-weight: 600; }
+
+    .result-title-en {
+      font-family: 'Cormorant Garamond', serif; font-style: italic;
+      font-size: 17px; letter-spacing: 0.35em; color: var(--text-muted);
+      text-transform: uppercase; margin-bottom: 20px; display: block;
+    }
+
+    /* 三軸分析儀表 */
+    .axes-panel {
+      max-width: 460px; margin: 8px auto 36px auto;
+      display: flex; flex-direction: column; gap: 18px;
+      text-align: left;
+    }
+    .axis-row { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 12px; }
+    .axis-label { font-size: 12px; color: var(--text-muted); letter-spacing: 0.1em; white-space: nowrap; }
+    .axis-label.right { text-align: right; }
+    .axis-track {
+      position: relative; height: 8px; border-radius: 100px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .track-undertone { background: linear-gradient(to right, #8FB6E8, #E8E4DC 50%, #EFB679); }
+    .track-depth     { background: linear-gradient(to right, #FBF7F0, #B9A99C 50%, #4D4139); }
+    .track-clarity   { background: linear-gradient(to right, #B7B2AE, #D9B3AC 50%, #E5615E); }
+    .axis-marker {
+      position: absolute; top: 50%; left: 50%;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; border: 2.5px solid var(--accent-main);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      transition: left 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .axes-note { font-size: 11px; color: var(--text-muted); text-align: center; letter-spacing: 0.08em; opacity: 0.8; }
+
+    /* 色票新增：hex 顯示與點擊複製 */
+    .color-swatch-wrapper { cursor: pointer; position: relative; }
+    .fav-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 15px; color: var(--text-muted); opacity: 0;
+      transition: all 0.25s; padding: 2px 6px; line-height: 1;
+    }
+    .color-swatch-wrapper:hover .fav-btn { opacity: 1; }
+    .fav-btn:hover { transform: scale(1.25); color: #E36875; }
+    .color-hex {
+      font-size: 10px; color: var(--text-muted); opacity: 0;
+      font-family: 'Cormorant Garamond', serif; letter-spacing: 0.06em;
+      transition: opacity 0.3s; margin-top: -4px;
+    }
+    .color-swatch-wrapper:hover .color-hex { opacity: 1; }
+
+    /* NG 地雷色 */
+    .ng-panel { margin-top: 40px; padding-top: 32px; border-top: 1px dashed rgba(0,0,0,0.08); }
+    .ng-title { font-size: 14px; color: var(--text-muted); letter-spacing: 0.15em; margin-bottom: 20px; }
+    .ng-grid { display: flex; justify-content: center; gap: 20px; }
+    .ng-swatch-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .ng-swatch {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.9);
+      position: relative; opacity: 0.85;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1), inset 0 -3px 6px rgba(0,0,0,0.1);
+    }
+    .ng-swatch::after {
+      content: ''; position: absolute; top: 50%; left: -4px; right: -4px;
+      height: 2px; background: rgba(255,255,255,0.95);
+      transform: rotate(-45deg);
+      box-shadow: 0 0 4px rgba(0,0,0,0.25);
+    }
+    .ng-name { font-size: 11px; color: var(--text-muted); letter-spacing: 0.06em; }
+
+    /* 複製回饋提示 */
+    #copy-toast {
+      position: fixed; bottom: 36px; left: 50%; transform: translate(-50%, 20px);
+      background: rgba(44,42,41,0.9); color: #fff;
+      padding: 10px 24px; border-radius: 100px;
+      font-size: 13px; letter-spacing: 0.1em;
+      opacity: 0; pointer-events: none;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 2000;
+    }
+    #copy-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* 開發模擬器低調化 */
+    .dev-controls {
+      margin-bottom: 8px;
+      opacity: 0.55; transition: opacity 0.3s;
+      font-size: 12px;
+    }
+    .dev-controls:hover { opacity: 1; }
+
+    /* ===== 桌面版雙欄佈局：結果一眼可見 ===== */
+    @media (min-width: 900px) {
+      .destiny-card { padding: 48px 56px; text-align: left; }
+      .destiny-grid {
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) 1.25fr;
+        gap: 48px;
+        align-items: center;
+      }
+      .destiny-hero { align-items: flex-start; margin-bottom: 0; }
+      .result-desc { margin: 0; text-align: justify; }
+      .axes-panel { margin: 0 0 28px 0; max-width: none; }
+      .color-grid { max-width: none; margin: 0; }
+      .palette-title { text-align: left; }
+      .ng-panel { margin-top: 36px; }
+      .ng-title { text-align: left; }
+      .ng-grid { justify-content: flex-start; }
+    }
+
+    /* 開發模擬選單收合，不佔版面 */
+    .dev-controls summary {
+      cursor: pointer; font-size: 12px; color: var(--accent-main);
+      letter-spacing: 0.08em; list-style: none; user-select: none;
+    }
+    .dev-controls summary::before { content: '▸ '; }
+    .dev-controls[open] summary::before { content: '▾ '; }
+    .dev-controls select { margin-top: 10px; }
+
+    /* ===== 背景柔化：粒子降透明度 + 白紗遮罩，內容不再被干擾 ===== */
+    #threeBgCanvas { display: none; } /* 結果頁停用粒子背景，維持乾淨閱讀環境 */
+    /* bg-veil 已於 v12 移除 */
+
+    /* ===== 桌面最佳視窗化 ===== */
+    .content-wrapper { max-width: 1140px; margin: 0 auto; width: 100%; }
+    .destiny-card {
+      background: rgba(255, 255, 255, 0.85); /* 提高卡片不透明度，確保可讀性 */
+    }
+    @media (min-width: 1100px) {
+      .recommendation-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+      .rec-card { padding: 26px 22px; }
+    }
+
+    /* ===== 判定依據面板：明確展示測驗結果與數據 ===== */
+    .rec-visual { width: 100%; display: flex; justify-content: center; margin: 6px 0 12px 0; }
+    .rec-visual svg { width: 116px; height: 88px; }
+    .rec-card .rec-text { font-size: 12.5px; line-height: 1.75; }
+
+    .verdict-panel {
+      margin-top: 36px; padding: 24px 28px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.65), rgba(255,255,255,0.35));
+      border: 1px solid rgba(255,255,255,0.85);
+      border-radius: 18px;
+    }
+    .verdict-title {
+      font-size: 12px; letter-spacing: 0.28em; color: var(--text-muted);
+      text-transform: uppercase; margin-bottom: 12px;
+      font-family: 'Cormorant Garamond', serif; font-weight: 600;
+    }
+    .verdict-line {
+      font-size: 16px; line-height: 1.9; color: var(--text-dark);
+    }
+    .verdict-line strong { color: var(--accent-main); font-weight: 600; }
+    .stats-strip {
+      display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px;
+    }
+    .stat-chip {
+      flex: 1 1 120px; min-width: 120px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(0,0,0,0.05);
+      border-radius: 14px; padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .stat-chip .stat-label { font-size: 11px; letter-spacing: 0.12em; color: var(--text-muted); }
+    .stat-chip .stat-value {
+      font-size: 19px; font-family: 'Cormorant Garamond', serif; font-weight: 600;
+      color: var(--text-dark); display: flex; align-items: center; gap: 8px;
+    }
+    .stat-dot { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 -2px 4px rgba(0,0,0,0.15); }
+
+    /* ================= 現代美妝 App 皮膚 ================= */
+    body {
+      background:
+        radial-gradient(90% 55% at 50% 0%, rgba(240,205,195,0.30) 0%, transparent 62%),
+        #FBF8F6 !important;
+    }
+
+    /* 卡片：純白、髮絲細邊、柔霧陰影（取代玻璃擬態） */
+    .glass-card {
+      background: #FFFFFF !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 1px solid rgba(43,39,36,0.055) !important;
+      box-shadow: 0 10px 34px rgba(70,50,45,0.07) !important;
+      border-radius: 24px !important;
+    }
+    .destiny-card { background: #FFFFFF !important; }
+
+    /* 區塊標題：小型大寫字距標籤（美妝 App 慣用層級） */
+    .palette-title, .ng-title, .verdict-title {
+      font-size: 11.5px !important;
+      letter-spacing: 0.24em !important;
+      text-transform: uppercase;
+      color: #A39A94 !important;
+      font-weight: 600 !important;
+    }
+
+    /* 判定依據：奶油腮紅色塊，取代漸層玻璃 */
+    .verdict-panel {
+      background: #FAF3F0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 20px !important;
+    }
+    .stat-chip {
+      background: #FFFFFF !important;
+      border: 1px solid rgba(43,39,36,0.05) !important;
+      box-shadow: 0 4px 14px rgba(70,50,45,0.05);
+    }
+
+    /* 建議卡：hover 微升起（App 卡片手感） */
+    .rec-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+    .rec-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(70,50,45,0.11) !important;
+    }
+
+    /* 三軸儀表軌道加白底描邊，浮在白卡上更清楚 */
+    .axis-track { border: 1px solid rgba(43,39,36,0.06); }
+
+    /* NG 區分隔線 */
+    .ng-panel { border-top: 1px solid rgba(43,39,36,0.07) !important; }
+
+    /* 返回鈕與按鈕統一藥丸形 */
+    .back-btn {
+      background: #fff; border: 1px solid rgba(43,39,36,0.10);
+      border-radius: 100px; padding: 10px 22px;
+      box-shadow: 0 4px 14px rgba(70,50,45,0.06);
+    }
+
+    /* ============================================================
+     * Modern Beauty 外觀層（v12 改版）
+     * 參考現代美妝 App：瓷白底、奶油粉點綴、膠囊圓角、
+     * 乾淨分區卡片、細緻字距標籤。覆蓋舊玻璃擬態樣式。
+     * ============================================================ */
+    :root {
+      --mb-bg: #FBF8F6;         /* 瓷白頁面底 */
+      --mb-card: #FFFFFF;       /* 卡片純白 */
+      --mb-line: #EFE7E1;       /* 髮絲分隔線 */
+      --mb-blush: #E58E96;      /* 奶油粉主點綴 */
+      --mb-blush-soft: #FAF1EF; /* 粉霧區塊底 */
+      --mb-ink: #3A312B;        /* 可可深棕文字 */
+      --mb-mute: #A89C93;       /* 次要文字 */
+    }
+    body {
+      background: var(--mb-bg) !important;
+      color: var(--mb-ink);
+    }
+    body::before, body::after { display: none !important; }
+
+    /* 卡片：拿掉毛玻璃，改純白 + 髮絲邊 + 漫射陰影 */
+    .glass-card, .destiny-card, .rec-card {
+      background: var(--mb-card) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 1px solid var(--mb-line) !important;
+      border-radius: 26px !important;
+      box-shadow: 0 18px 50px rgba(90, 65, 50, 0.07) !important;
+    }
+    .destiny-card { box-shadow: 0 24px 70px rgba(90, 65, 50, 0.09) !important; }
+
+    /* 標題階層：小字距標籤 + 收斂的襯線主標 */
+    .result-title { letter-spacing: 0.04em; }
+    .result-title-en { color: var(--mb-blush); opacity: 0.9; }
+    .season-badge {
+      border-radius: 100px; letter-spacing: 0.18em;
+      box-shadow: none !important; font-weight: 600;
+    }
+    .palette-title, .ng-title, .verdict-title {
+      color: var(--mb-mute); letter-spacing: 0.24em; font-size: 11.5px;
+      text-transform: uppercase; font-weight: 600;
+    }
+
+    /* 判定依據：粉霧底色區塊 */
+    .verdict-panel {
+      background: var(--mb-blush-soft) !important;
+      border: none !important; border-radius: 20px !important;
+    }
+    .verdict-line strong { color: var(--mb-blush); }
+    .stat-chip {
+      background: var(--mb-card) !important;
+      border: 1px solid var(--mb-line) !important;
+      border-radius: 16px !important; box-shadow: none !important;
+    }
+
+    /* 三軸儀表：軌道加高、指針改主色 */
+    .axis-track { height: 10px; }
+    .axis-marker { border-color: var(--mb-blush) !important; }
+
+    /* 色票：更大、柔和浮起 */
+    .color-swatch { box-shadow: 0 8px 20px rgba(90,65,50,0.15), inset 0 -4px 8px rgba(0,0,0,0.08); }
+    .fav-btn { color: var(--mb-blush); }
+
+    /* NG 區：虛線改實髮絲線 */
+    .ng-panel { border-top: 1px solid var(--mb-line) !important; }
+
+    /* 返回鈕與各按鈕：膠囊化 */
+    .back-btn, .btn-glass, .btn-primary {
+      border-radius: 100px !important;
+      border: 1px solid var(--mb-line) !important;
+      background: var(--mb-card) !important;
+      box-shadow: 0 4px 14px rgba(90,65,50,0.06) !important;
+      color: var(--mb-ink) !important;
+    }
+    .back-btn:hover, .btn-glass:hover { border-color: var(--mb-blush) !important; color: var(--mb-blush) !important; }
+
+    /* 頂部導覽：貼齊白底 */
+    .main-header {
+      background: rgba(251,248,246,0.92) !important;
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--mb-line);
+      box-shadow: none !important;
+    }
+    .desktop-nav a.active { color: var(--mb-blush) !important; }
+
+    /* 開發模擬選單：極低調 */
+    .dev-controls { opacity: 0.35; }
+    .dev-controls:hover { opacity: 0.9; }
+
+    .main-footer { color: var(--mb-mute); }
+
+    /* 彩色背景真兇：結果卡的旋轉彩虹漸層邊框，v13 移除 */
+    .destiny-card::after { display: none !important; animation: none !important; }
+  </style>
+</head>
+<body data-season="summer">
+
+  <button class="fixed-hamburger mobile-ui-only" onclick="toggleMenu()">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html" class="active">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <div class="content-wrapper">
+      
+      <!-- 開發者模擬切換器 (前端暫定) -->
+      <details class="dev-controls fade-in delay-1" style="width: 100%;">
+        <summary>開發模擬：切換命定色類型</summary>
+        <select id="mockApiSelector" onchange="renderResult(this.value, true)">
+          <optgroup label="春季型">
+            <option value="light-spring">亮春型</option>
+            <option value="warm-spring">暖春型</option>
+            <option value="bright-spring">豔春型</option>
+          </optgroup>
+          <optgroup label="夏季型">
+            <option value="light-summer">亮夏型</option>
+            <option value="cool-summer" selected>冷夏型 (預設)</option>
+            <option value="soft-summer">柔夏型</option>
+          </optgroup>
+          <optgroup label="秋季型">
+            <option value="soft-autumn">柔秋型</option>
+            <option value="warm-autumn">暖秋型</option>
+            <option value="deep-autumn">深秋型</option>
+          </optgroup>
+          <optgroup label="冬季型">
+            <option value="bright-winter">豔冬型</option>
+            <option value="cool-winter">冷冬型</option>
+            <option value="deep-winter">深冬型</option>
+          </optgroup>
+        </select>
+      </details>
+
+      <a href="index.html#main-app" class="back-btn fade-in delay-1" style="align-self: flex-start;">
+        <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path></svg>
+        返回首頁
+      </a>
+
+      <div class="result-section" id="dynamic-content">
+        
+        <!-- 動態命定色結果卡片 -->
+        <div class="glass-card destiny-card fade-in delay-2">
+          <div class="destiny-grid">
+
+            <div>
+              <div class="destiny-hero">
+                <div class="hero-photo-wrap" id="ui-photo-wrap">
+                  <div class="hero-photo-ring" id="ui-photo-ring"></div>
+                  <img class="hero-photo" id="ui-photo" alt="您的分析照片">
+                  <div class="skin-chip">
+                    <div class="skin-chip-dot" id="ui-skin-dot"></div>
+                    <span class="skin-chip-hex" id="ui-skin-hex"></span>
+                  </div>
+                </div>
+                <div>
+                  <div class="season-badge" id="ui-badge">載入中...</div>
+                  <h1 class="result-title" id="ui-title" style="margin-bottom: 4px;">載入中...</h1>
+                  <span class="result-title-en" id="ui-title-en"></span>
+                </div>
+                <p class="result-desc" id="ui-desc">
+                  --
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <!-- 12 型命定色環：視覺化顯示您在色彩地圖上的位置 -->
+              <div id="ui-type-ring" style="display:flex; justify-content:center; margin: 4px 0 20px 0;"></div>
+
+              <!-- 三軸分析儀表 -->
+              <div class="axes-panel" id="ui-axes">
+                <div class="axis-row">
+                  <span class="axis-label">冷調</span>
+                  <div class="axis-track track-undertone"><div class="axis-marker" id="marker-undertone"></div></div>
+                  <span class="axis-label right">暖調</span>
+                </div>
+                <div class="axis-row">
+                  <span class="axis-label">淺</span>
+                  <div class="axis-track track-depth"><div class="axis-marker" id="marker-depth"></div></div>
+                  <span class="axis-label right">深</span>
+                </div>
+                <div class="axis-row">
+                  <span class="axis-label">柔霧</span>
+                  <div class="axis-track track-clarity"><div class="axis-marker" id="marker-clarity"></div></div>
+                  <span class="axis-label right">清豔</span>
+                </div>
+                <span class="axes-note" id="ui-axes-note">依此三軸落點對應出您的命定色類型</span>
+              </div>
+
+              <div class="palette-container">
+                <h3 class="palette-title">最佳提亮色 Top 5 <span style="font-size:11px; color:var(--text-muted); font-weight:400;">（點擊色球可複製色碼）</span></h3>
+                <div class="color-grid" id="ui-colors">
+                   <!-- 色票會由 JS 注入 -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 判定依據：明確展示測驗結論與實測數據 -->
+          <div class="verdict-panel">
+            <div class="verdict-title">Analysis Verdict · 判定依據</div>
+            <div class="verdict-line" id="ui-verdict-text">--</div>
+            <div class="stats-strip" id="ui-stats" style="display:none;">
+              <div class="stat-chip">
+                <span class="stat-label">平均膚色</span>
+                <span class="stat-value"><span class="stat-dot" id="stat-skin-dot"></span><span id="stat-skin-hex">--</span></span>
+              </div>
+              <div class="stat-chip">
+                <span class="stat-label">明度 L*（深淺）</span>
+                <span class="stat-value" id="stat-L">--</span>
+              </div>
+              <div class="stat-chip">
+                <span class="stat-label">色相角（冷暖）</span>
+                <span class="stat-value" id="stat-hue">--</span>
+              </div>
+              <div class="stat-chip">
+                <span class="stat-label">彩度 C*（清濁）</span>
+                <span class="stat-value" id="stat-chroma">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NG 地雷色 -->
+          <div class="ng-panel">
+            <h3 class="ng-title">建議避開的地雷色</h3>
+            <div class="ng-grid" id="ui-ng-colors"></div>
+          </div>
+        </div>
+
+        <!-- 專屬推薦 -->
+        <h2 class="page-title fade-in delay-3" style="margin-bottom: 0; margin-top: 16px;">專屬搭配建議</h2>
+        
+        <div class="recommendation-grid fade-in delay-4">
+          <div class="glass-card rec-card">
+            <div class="rec-icon">01</div>
+            <h3 class="rec-title">服裝穿搭</h3>
+            <div class="rec-visual" id="ui-vis-outfit"></div>
+            <p class="rec-text" id="ui-rec-outfit">--</p>
+          </div>
+          
+          <div class="glass-card rec-card">
+            <div class="rec-icon">02</div>
+            <h3 class="rec-title">彩妝選擇</h3>
+            <div class="rec-visual" id="ui-vis-makeup"></div>
+            <p class="rec-text" id="ui-rec-makeup">--</p>
+          </div>
+          
+          <div class="glass-card rec-card">
+            <div class="rec-icon">03</div>
+            <h3 class="rec-title">髮色建議</h3>
+            <div class="rec-visual" id="ui-vis-hair"></div>
+            <p class="rec-text" id="ui-rec-hair">--</p>
+          </div>
+          
+          <div class="glass-card rec-card">
+            <div class="rec-icon">04</div>
+            <h3 class="rec-title">飾品配件</h3>
+            <div class="rec-visual" id="ui-vis-acc"></div>
+            <p class="rec-text" id="ui-rec-acc">--</p>
+          </div>
+        </div>
+
+        <div class="btn-group fade-in delay-4">
+          <button class="btn-cancel" onclick="window.print()">儲存結果</button>
+          <button class="btn-save" onclick="location.href='camera.html'">重新分析</button>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="main-footer fade-in delay-4">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <div id="copy-toast"></div>
+
+  <script>
+    function toggleMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    }
+
+    // ================= 前端模擬 JSON 資料 =================
+    const apiDataMock = {
+      "light-spring": {
+        badgeClass: "badge-spring", badgeLabel: "亮春", title: "亮春型",
+        desc: "適合像水彩畫般通透的顏色。這類人膚色薄且透亮，適合低濃度、高明度的馬卡龍色，如蜜桃粉或薄荷綠，能映襯出皮膚的清澈感。",
+        colors: [
+          { hex: "#FFC5B3", name: "蜜桃粉" }, { hex: "#A8E6CF", name: "薄荷綠" },
+          { hex: "#FFF1B0", name: "檸檬黃" }, { hex: "#BBE5F1", name: "嬰兒藍" },
+          { hex: "#FDFBF7", name: "象牙白" }
+        ]
+      },
+      "warm-spring": {
+        badgeClass: "badge-spring", badgeLabel: "暖春", title: "暖春型",
+        desc: "色彩屬性最溫暖的一群。適合黃色基調明顯、飽和度中上的色彩，如鮮奶油、珊瑚橘。穿上這些顏色會讓臉部看起來紅潤健康，充滿陽光感。",
+        colors: [
+          { hex: "#FA9F7A", name: "珊瑚橘" }, { hex: "#FDF4CD", name: "鮮奶油" },
+          { hex: "#F7D060", name: "暖金黃" }, { hex: "#F18A9E", name: "桃紅" },
+          { hex: "#B4D661", name: "陽光綠" }
+        ]
+      },
+      "bright-spring": {
+        badgeClass: "badge-spring", badgeLabel: "豔春", title: "豔春型",
+        desc: "關鍵在於「對比」。適合極度清脆、不帶灰調的色彩，如亮星黃、康乃馨粉。強烈的色澤能帶出你眼眸的閃爍感，不被衣服蓋過風采。",
+        colors: [
+          { hex: "#FCEE21", name: "亮星黃" }, { hex: "#F98BBB", name: "康乃馨粉" },
+          { hex: "#6EEB83", name: "翠綠" }, { hex: "#4E8DF5", name: "湛藍" },
+          { hex: "#FF9F43", name: "活力橘" }
+        ]
+      },
+      "light-summer": {
+        badgeClass: "badge-summer", badgeLabel: "亮夏", title: "亮夏型",
+        desc: "夏季中最輕盈的一群。適合粉質、帶冷調的淡色，如嬰兒藍、粉紫色。過重的顏色會顯得沉重，唯有輕柔色調能襯托出你如精靈般的清冷氣質。",
+        colors: [
+          { hex: "#ADD8E6", name: "嬰兒藍" }, { hex: "#E0BBE4", name: "粉紫" },
+          { hex: "#F5C6D6", name: "石竹粉" }, { hex: "#C3ECD0", name: "柔綠" },
+          { hex: "#E2E8F0", name: "淡灰" }
+        ]
+      },
+      "cool-summer": {
+        badgeClass: "badge-summer", badgeLabel: "冷夏", title: "冷夏型",
+        desc: "完全不帶暖色，適合純粹的冷色，如天藍、冰粉紅。這類人穿上帶黃的顏色會顯得臉色蠟黃，而冷色調能瞬間讓皮膚顯得白皙透亮。",
+        colors: [
+          { hex: "#7EB6FF", name: "天藍" }, { hex: "#F0BEE3", name: "冰粉紅" },
+          { hex: "#9CE1D9", name: "薄荷藍" }, { hex: "#BEA9DE", name: "丁香紫" },
+          { hex: "#AAB2BD", name: "冷鋼灰" }
+        ]
+      },
+      "soft-summer": {
+        badgeClass: "badge-summer", badgeLabel: "柔夏", title: "柔夏型",
+        desc: "最具「莫蘭迪」感。適合帶灰調、曖昧不明的色彩，如煙灰粉、鼠尾草綠。這種低飽和色彩能與你溫潤的五官完美融合，呈現出極致的高級知性美。",
+        colors: [
+          { hex: "#CCACB1", name: "煙灰粉" }, { hex: "#9EAF9B", name: "鼠尾草綠" },
+          { hex: "#8E9EAB", name: "莫蘭迪藍" }, { hex: "#9D96A8", name: "霧紫" },
+          { hex: "#A2999E", name: "灰褐" }
+        ]
+      },
+      "soft-autumn": {
+        badgeClass: "badge-autumn", badgeLabel: "柔秋", title: "柔秋型",
+        desc: "溫暖但內斂，適合帶灰調的大地色，如藕荷色、卡其色。這類人不需要太尖銳的對比，溫柔的灰調能讓皮膚看起來細膩平滑，富有層次感。",
+        colors: [
+          { hex: "#C4B1A7", name: "藕荷色" }, { hex: "#C2B280", name: "卡其色" },
+          { hex: "#BD8D84", name: "豆沙色" }, { hex: "#9F9A7B", name: "橄欖褐" },
+          { hex: "#D3CBB8", name: "燕麥灰" }
+        ]
+      },
+      "warm-autumn": {
+        badgeClass: "badge-autumn", badgeLabel: "暖秋", title: "暖秋型",
+        desc: "標準的深秋落葉色系。適合楓葉紅、芥末黃、鐵鏽橘。這些色彩與你體內的暖色調共鳴，能給人一種豐盈、華麗且充滿生命力的安定感。",
+        colors: [
+          { hex: "#B45B4B", name: "楓葉紅" }, { hex: "#D7A643", name: "芥末黃" },
+          { hex: "#B9663B", name: "鐵鏽橘" }, { hex: "#7A8143", name: "深橄欖" },
+          { hex: "#896043", name: "落葉棕" }
+        ]
+      },
+      "deep-autumn": {
+        badgeClass: "badge-autumn", badgeLabel: "深秋", title: "深秋型",
+        desc: "量感最強的秋季型。適合深邃、濃郁的顏色，如森林綠、巧克力色。這類顏色能壓得住你深邃的眼神與濃郁的髮色，顯得從容且有氣場。",
+        colors: [
+          { hex: "#385E3A", name: "森林綠" }, { hex: "#5B3C31", name: "巧克力" },
+          { hex: "#6A2C31", name: "深酒紅" }, { hex: "#975A28", name: "焦糖棕" },
+          { hex: "#4D4139", name: "深茶色" }
+        ]
+      },
+      "bright-winter": {
+        badgeClass: "badge-winter", badgeLabel: "豔冬", title: "豔冬型",
+        desc: "適合高對比、極其乾淨的顏色，如皇家藍、檸檬黃。你的五官自帶光芒，穿上黑白對比或飽和度爆表的顏色，反而能讓五官更鮮明、立體。",
+        colors: [
+          { hex: "#2752E1", name: "皇家藍" }, { hex: "#EDEF3D", name: "檸檬黃" },
+          { hex: "#E32148", name: "正冰紅" }, { hex: "#08B46C", name: "透翠綠" },
+          { hex: "#1A1A1A", name: "耀眼黑" }
+        ]
+      },
+      "cool-winter": {
+        badgeClass: "badge-winter", badgeLabel: "冷冬", title: "冷冬型",
+        desc: "極致的冰冷色彩，如寶石藍、正紫色、純白。不能有任何黃調或暖意，純粹的冷色能讓你顯得乾淨俐落，營造出一種高冷、不易親近眼神祕感。",
+        colors: [
+          { hex: "#1A4EB1", name: "寶石藍" }, { hex: "#7D2894", name: "正紫" },
+          { hex: "#D43962", name: "冷桃紅" }, { hex: "#FFFFFF", name: "純白" },
+          { hex: "#B8C0C8", name: "銀" }
+        ]
+      },
+      "deep-winter": {
+        badgeClass: "badge-winter", badgeLabel: "深冬", title: "深冬型",
+        desc: "最能駕馭「黑色」的類型。適合沉重、深沉的冷色，如勃根地紅、深藍、碳灰。飽和度高的暗色調能襯托出皮膚的透明度，展現神祕而高級的氣場。",
+        colors: [
+          { hex: "#4D0014", name: "勃根地紅" }, { hex: "#101639", name: "深藍" },
+          { hex: "#26292C", name: "碳灰" }, { hex: "#28112F", name: "深紫" },
+          { hex: "#0E291C", name: "墨綠" }
+        ]
+      }
+    };
+
+    // 負責將資料渲染到 DOM 上的函數
+    function renderResult(typeId) {
+      const container = document.getElementById('dynamic-content');
+      container.style.opacity = 0; // 淡出
+
+      setTimeout(() => {
+        const data = apiDataMock[typeId];
+        if (!data) return;
+
+        // 徽章
+        const badge = document.getElementById('ui-badge');
+        badge.className = 'season-badge ' + data.badgeClass;
+        badge.textContent = data.badgeLabel;
+
+        // 標題與描述
+        document.getElementById('ui-title').textContent = data.title;
+        document.getElementById('ui-desc').textContent = data.desc;
+
+        // 色票渲染（點擊可複製色碼）
+        const colorsHtml = data.colors.map(c => `
+          <div class="color-swatch-wrapper" onclick="copyHex('${c.hex}')" title="點擊複製 ${c.hex}">
+            <div class="color-swatch" style="background-color: ${c.hex}"></div>
+            <span class="color-name">${c.name}</span>
+            <span class="color-hex">${c.hex}</span>
+            <button class="fav-btn" onclick="event.stopPropagation(); favColor('${c.hex}', '${c.name}', this)" title="收藏到我的帳戶">♡</button>
+          </div>
+        `).join('');
+        document.getElementById('ui-colors').innerHTML = colorsHtml;
+
+        // 個人化區塊：英文名、三軸儀表、NG 色、本人照片
+        renderExtras(typeId);
+
+        container.style.opacity = 1; // 載入完畢淡入
+      }, 300);
+    }
+
+    // 初始化（支援網址參數傳遞，例如 ?type=light-spring）
+    window.onload = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const typeParam = urlParams.get('type');
+      const selector = document.getElementById('mockApiSelector');
+      
+      if (typeParam && apiDataMock[typeParam]) {
+        selector.value = typeParam; // 更新下拉選單以配合網址參數
+      }
+      
+      renderResult(selector.value);
+
+      // 若是剛完成的新分析（相機/上傳頁會設定標記），將結果存進資料庫
+      // 未登入時後端會拒絕，這裡靜默略過，不影響瀏覽
+      if (localStorage.getItem('freshAnalysis') === '1' && apiDataMock[selector.value]) {
+        localStorage.removeItem('freshAnalysis'); // 先移除，避免重整頁面重複寫入
+        let skinHex = '';
+        try {
+          const d = JSON.parse(localStorage.getItem('userAnalysisData') || 'null');
+          if (d && d.avgHex) skinHex = d.avgHex;
+        } catch(e) {}
+
+        const form = new FormData();
+        form.append('color_type', selector.value);
+        form.append('color_title', apiDataMock[selector.value].title);
+        form.append('skin_hex', skinHex);
+        fetch('api_save_result.php', { method: 'POST', body: form })
+          .then(r => r.json())
+          .then(res => console.log('分析紀錄儲存:', res.success ? '成功' : ('未儲存 - ' + (res.message || ''))))
+          .catch(err => console.warn('分析紀錄儲存失敗（可能未使用 XAMPP 環境）', err));
+      }
+    };
+    // ================= 12 型專屬搭配建議 =================
+    const recData = {
+      "light-spring": {
+        outfit: "以象牙白、蜜桃粉等淺暖色作為大面積主色，材質選擇輕薄透光的雪紡或棉麻。避免全身深色，容易壓過您通透的膚質。",
+        makeup: "粉底選黃調偏白的色號，腮紅用蜜桃色或杏色薄擦，唇彩推薦水潤感的珊瑚粉，整體妝感以「透亮」為原則，避免霧面重唇。",
+        hair: "適合亮棕、蜂蜜茶棕等明度較高的暖色系髮色，能與膚色相互提亮。避免藍黑或冷灰色調，會顯得氣色黯淡。",
+        acc: "首選黃金、玫瑰金的細緻款飾品，亮面材質優於霧面。珍珠可選帶暖光澤的奶油色系。"
+      },
+      "warm-spring": {
+        outfit: "珊瑚橘、暖金黃是您的主場色，適合作為上衣或洋裝主色。搭配鮮奶油色打底，整體溫暖有活力。避開冷灰與藍紫色系。",
+        makeup: "粉底務必選黃調（Warm/Golden），腮紅用珊瑚橘，唇彩推薦橘紅或磚粉色。眼影可用金棕色系堆疊層次。",
+        hair: "焦糖棕、蜜糖橘棕等飽和暖色最能襯托您，染後膚色會顯得紅潤健康。避免霧感亞麻灰。",
+        acc: "黃金飾品是絕配，琥珀、蜜蠟等暖色寶石也很出色。避免銀飾與白金，會與膚色調性打架。"
+      },
+      "bright-spring": {
+        outfit: "大膽使用高飽和的翠綠、湛藍、亮黃作為視覺焦點，搭配乾淨的白色平衡。最忌混濁的大地色，會蓋掉您五官的光彩。",
+        makeup: "妝感可以鮮明：正橘或亮桃紅唇彩、清晰的眼線。粉底選黃調，重點是保持皮膚的清透感，讓亮色妝容有乾淨的舞台。",
+        hair: "深棕帶暖光澤的髮色能維持五官對比度，也可嘗試亮眼的橘棕挑染。避免整頭染淺，會削弱您的鮮明感。",
+        acc: "亮面黃金、亮彩寶石（黃水晶、綠松石）都能駕馭。飾品可以有存在感，細碎低調款反而浪費您的氣場。"
+      },
+      "light-summer": {
+        outfit: "嬰兒藍、粉紫、淡灰是安全又出色的主色，同色系淺色疊穿最能展現您的輕盈氣質。避免亮黃、磚橘等暖重色。",
+        makeup: "粉底選粉調（Cool/Rosy），腮紅用冷粉色輕掃，唇彩推薦玫瑰粉或淡莓色。妝感以柔霧輕透為主，避免橘調修容。",
+        hair: "適合霧感亞麻棕、冷棕色，帶灰調的髮色能襯出您的清冷感。避免金黃或橘棕色系。",
+        acc: "銀飾、白金與淡水珍珠是首選，月光石等清透寶石也很適合。避免黃金與大顆暖色寶石。"
+      },
+      "cool-summer": {
+        outfit: "天藍、丁香紫、冰粉紅等純冷色是您的主力，搭配冷鋼灰或白色都很和諧。帶黃的顏色（芥末、卡其）會讓臉色顯得蠟黃，務必避開。",
+        makeup: "粉底選粉調偏白，腮紅用冷玫瑰色，唇彩推薦莓果色或藍調粉紅。眼影可用灰紫、灰藍色系。",
+        hair: "冷黑、深冷棕或藍黑色最能突顯您的冷調氣質，也可嘗試霧灰紫挑染。避免任何橘感、金感的暖髮色。",
+        acc: "銀、白金、白鑽是絕配，藍寶石、紫水晶等冷色寶石能加分。黃金會與您的冷調膚色相衝。"
+      },
+      "soft-summer": {
+        outfit: "煙灰粉、鼠尾草綠、莫蘭迪藍是您的代表色，全身以低飽和灰調色互搭，呈現高級的知性感。避免螢光色與高飽和正色。",
+        makeup: "妝感走「霧面柔焦」路線：粉調粉底、乾燥玫瑰色腮紅與唇彩，眼影用灰棕或灰粉。過於鮮豔的唇色會顯得突兀。",
+        hair: "霧感冷棕、灰棕或亞麻灰最合適，霧面質感與您的柔和五官相得益彰。避免亮橘棕與過黑的髮色。",
+        acc: "霧面銀飾、灰調珍珠優於亮面款，玫瑰石英等低飽和寶石也很搭。飾品以細緻低調為佳。"
+      },
+      "soft-autumn": {
+        outfit: "藕荷色、卡其、燕麥灰等灰調大地色是您的舒適圈，材質選霧面針織或麂皮更加分。避免純白與皇家藍等高對比色。",
+        makeup: "粉底選黃調自然色，腮紅用裸杏色，唇彩推薦豆沙色或裸棕調。整體妝感溫柔內斂，避免冷粉色系。",
+        hair: "適合霧感焦糖棕、奶茶棕等帶灰的暖髮色，柔和的色澤能讓膚質看起來更細膩。避免藍黑與亮金色。",
+        acc: "霧面黃金、古銅色飾品最有味道，木質、皮革材質配件也很契合您的大地氣質。"
+      },
+      "warm-autumn": {
+        outfit: "楓葉紅、芥末黃、鐵鏽橘是您的主場，秋冬可大膽使用焦糖色大衣、深橄欖針織。避免冰粉、銀灰等冷淺色。",
+        makeup: "粉底選黃調，腮紅用磚橘色，唇彩推薦磚紅或南瓜色。眼影以大地色、古銅金堆疊最出彩。",
+        hair: "紅棕、栗子色、深銅棕等濃郁暖色最能呼應您的調性，染後整個人的氣場會更沉穩華麗。",
+        acc: "黃金、古銅、琥珀是絕配，民族風或復古款式的配件特別適合您。避免亮銀與白金。"
+      },
+      "deep-autumn": {
+        outfit: "森林綠、巧克力、深酒紅等濃郁色彩能壓得住您的深邃五官，全身深色反而顯得從容大器。避免馬卡龍淡色，會顯得頭重腳輕。",
+        makeup: "唇彩可駕馭深酒紅、烤栗色等重色，眼影用深棕、墨綠打造層次。粉底選黃調，妝感濃一點也不怕。",
+        hair: "深咖啡、黑茶色或暗紅棕最合適，深髮色與深色瞳孔的搭配是您氣場的來源。避免染淺超過兩個色階。",
+        acc: "霧面黃金、古董金與深色寶石（石榴石、虎眼石）能襯托您的濃郁感。配件可選有份量的款式。"
+      },
+      "bright-winter": {
+        outfit: "皇家藍、正紅、黑白對比是您的武器，色塊乾淨、對比強烈的穿搭最能突顯五官。最忌米色、卡其等混濁中間色。",
+        makeup: "正紅唇是您的招牌，搭配乾淨底妝與俐落眼線即可。粉底選中性偏粉調，腮紅淡淡帶過就好，讓唇色當主角。",
+        hair: "純黑或藍黑色最能維持您的高對比感，冷調深棕也可以。避免任何暖橘棕與淺色系。",
+        acc: "白金、亮銀與白鑽是首選，紅寶石、藍寶石等高飽和寶石也能駕馭。設計俐落的幾何款式最適合。"
+      },
+      "cool-winter": {
+        outfit: "寶石藍、正紫、純白是您的代表色，冷色系單品怎麼搭都不出錯。全身避免出現帶黃的顏色，包括米白與駝色。",
+        makeup: "粉底選粉調，唇彩推薦冷桃紅或紫紅調，眼影用灰、紫、藍色系。橘色系彩妝是您的大忌。",
+        hair: "藍黑、冷黑或深紫黑最能突顯您的冰冷氣質，霧灰色挑染也很出色。避免所有暖棕與金色。",
+        acc: "銀、白金、白鑽與冷色寶石（藍寶石、紫水晶、坦桑石）是絕配。亮面材質優於霧面。"
+      },
+      "deep-winter": {
+        outfit: "您是最能駕馭黑色的類型——勃根地紅、深藍、碳灰的全深色穿搭反而顯得皮膚透亮。避免粉嫩淺色，會削弱您的神祕氣場。",
+        makeup: "深酒紅、黑莓色唇彩是您的主場，煙燻眼妝也能完美消化。粉底選中性調，底妝乾淨即可，重點放在唇眼。",
+        hair: "純黑就是您的最佳答案，深酒紅、暗紫黑也很出色。深邃髮色能讓膚色對比更清透。",
+        acc: "白金、黑鋼與深色寶石（黑瑪瑙、深紅石榴石）最能呼應您的氣場。大膽的設計款比小巧款更適合。"
+      },
+    };
+
+    // ================= 個人化擴充資料 =================
+    // 各類型的英文名、NG 地雷色、三軸預設落點 (0~100)
+    const typeExtras = {
+      "light-spring":  { en: "Light Spring",  axes: { undertone: 68, depth: 18, clarity: 45 }, ng: [ { hex:"#1A1A1A", name:"純黑" }, { hex:"#6A2C31", name:"深酒紅" }, { hex:"#5F5E5A", name:"重灰" } ] },
+      "warm-spring":   { en: "Warm Spring",   axes: { undertone: 88, depth: 35, clarity: 62 }, ng: [ { hex:"#AAB2BD", name:"冷鋼灰" }, { hex:"#7EB6FF", name:"冰藍" }, { hex:"#7D2894", name:"正紫" } ] },
+      "bright-spring": { en: "Bright Spring", axes: { undertone: 72, depth: 30, clarity: 90 }, ng: [ { hex:"#C2B280", name:"卡其" }, { hex:"#A2999E", name:"灰褐" }, { hex:"#896043", name:"落葉棕" } ] },
+      "light-summer":  { en: "Light Summer",  axes: { undertone: 28, depth: 16, clarity: 42 }, ng: [ { hex:"#B9663B", name:"鐵鏽橘" }, { hex:"#5B3C31", name:"深棕" }, { hex:"#FCEE21", name:"亮黃" } ] },
+      "cool-summer":   { en: "Cool Summer",   axes: { undertone: 12, depth: 42, clarity: 55 }, ng: [ { hex:"#D7A643", name:"芥末黃" }, { hex:"#B9663B", name:"鐵鏽橘" }, { hex:"#C2B280", name:"駝色" } ] },
+      "soft-summer":   { en: "Soft Summer",   axes: { undertone: 32, depth: 48, clarity: 18 }, ng: [ { hex:"#FCEE21", name:"螢光黃" }, { hex:"#E32148", name:"正紅" }, { hex:"#FF9F43", name:"亮橘" } ] },
+      "soft-autumn":   { en: "Soft Autumn",   axes: { undertone: 66, depth: 52, clarity: 20 }, ng: [ { hex:"#FFFFFF", name:"純白" }, { hex:"#2752E1", name:"皇家藍" }, { hex:"#F18A9E", name:"桃紅" } ] },
+      "warm-autumn":   { en: "Warm Autumn",   axes: { undertone: 90, depth: 58, clarity: 50 }, ng: [ { hex:"#F0BEE3", name:"冰粉" }, { hex:"#B8C0C8", name:"銀灰" }, { hex:"#1A4EB1", name:"寶石藍" } ] },
+      "deep-autumn":   { en: "Deep Autumn",   axes: { undertone: 76, depth: 88, clarity: 55 }, ng: [ { hex:"#FFC5B3", name:"蜜桃粉" }, { hex:"#BBE5F1", name:"嬰兒藍" }, { hex:"#E0BBE4", name:"粉紫" } ] },
+      "bright-winter": { en: "Bright Winter", axes: { undertone: 25, depth: 55, clarity: 92 }, ng: [ { hex:"#FDF4CD", name:"鮮奶油" }, { hex:"#C2B280", name:"卡其" }, { hex:"#B9663B", name:"磚橘" } ] },
+      "cool-winter":   { en: "Cool Winter",   axes: { undertone: 8,  depth: 62, clarity: 72 }, ng: [ { hex:"#FF9F43", name:"亮橘" }, { hex:"#D7A643", name:"芥末黃" }, { hex:"#9F9A7B", name:"橄欖褐" } ] },
+      "deep-winter":   { en: "Deep Winter",   axes: { undertone: 22, depth: 92, clarity: 65 }, ng: [ { hex:"#FFF1B0", name:"檸檬黃" }, { hex:"#A8E6CF", name:"薄荷綠" }, { hex:"#F5C6D6", name:"石竹粉" } ] },
+    };
+
+    // 讀取實際分析數值（相機/上傳分析後存入），把 Lab 指標換算成三軸百分比
+    function getMeasuredAxes() {
+      try {
+        const d = JSON.parse(localStorage.getItem('userAnalysisData') || 'null');
+        if (!d || !d.lab) return null;
+        const clamp = v => Math.max(4, Math.min(96, v));
+        return {
+          undertone: clamp((d.hueAngle - 18) / 60 * 100),        // 色相角 → 冷暖
+          depth:     clamp(100 - (d.lab.L - 38) / 52 * 100),     // 明度 → 深淺
+          clarity:   clamp((d.chroma - 8) / 32 * 100),           // 彩度 → 清濁
+          skinHex:   d.avgHex,
+          measured:  true,
+        };
+      } catch (e) { return null; }
+    }
+
+    function renderExtras(typeId) {
+      const extras = typeExtras[typeId];
+      if (!extras) return;
+
+      // 英文名
+      document.getElementById('ui-title-en').textContent = extras.en;
+
+      // 建議卡示意圖（用該類型實際色票上色）
+      recVisuals(typeId);
+
+      // 12 型命定色環
+      renderTypeRing(typeId);
+
+      // 專屬搭配建議（依類型變化）
+      const rec = recData[typeId];
+      if (rec) {
+        document.getElementById('ui-rec-outfit').textContent = rec.outfit;
+        document.getElementById('ui-rec-makeup').textContent = rec.makeup;
+        document.getElementById('ui-rec-hair').textContent = rec.hair;
+        document.getElementById('ui-rec-acc').textContent = rec.acc;
+      }
+
+      // 三軸儀表：優先用實測值，沒有就用該類型的典型落點
+      const measured = getMeasuredAxes();
+      const axes = measured || extras.axes;
+      document.getElementById('marker-undertone').style.left = axes.undertone + '%';
+      document.getElementById('marker-depth').style.left = axes.depth + '%';
+      document.getElementById('marker-clarity').style.left = axes.clarity + '%';
+      document.getElementById('ui-axes-note').textContent = measured
+        ? '● 依您照片的實際膚色測量結果'
+        : '依此三軸落點對應出您的命定色類型';
+
+      // ===== 判定依據：把三軸落點翻譯成明確結論 =====
+      // 門檻值與 color-analysis.js 的分類邊界對齊（hue 48°→50%、L 66→47%、L 56→65%、C 26→56%、C 22→44%）
+      const toneWord   = axes.undertone >= 50 ? '偏暖（黃調）' : '偏冷（粉調）';
+      const depthWord  = axes.depth < 47 ? '偏淺' : (axes.depth > 65 ? '偏深' : '中等');
+      const clarityWord = axes.clarity > 56 ? '偏清豔' : (axes.clarity < 44 ? '偏柔霧' : '適中');
+      const zhTitle = (apiDataMock[typeId] && apiDataMock[typeId].title) || typeId;
+      document.getElementById('ui-verdict-text').innerHTML =
+        (measured ? '依據您照片的實測膚色：' : '此類型的典型特徵：') +
+        `底調<strong>${toneWord}</strong>、明度<strong>${depthWord}</strong>、彩度<strong>${clarityWord}</strong>` +
+        `，綜合三軸判定為 <strong>${zhTitle}（${extras.en}）</strong>。`;
+
+      // 實測數據 chips（只有真的分析過才顯示）
+      const statsEl = document.getElementById('ui-stats');
+      try {
+        const raw = JSON.parse(localStorage.getItem('userAnalysisData') || 'null');
+        if (measured && raw && raw.lab) {
+          document.getElementById('stat-skin-dot').style.backgroundColor = raw.avgHex;
+          document.getElementById('stat-skin-hex').textContent = raw.avgHex.toUpperCase();
+          document.getElementById('stat-L').textContent = raw.lab.L;
+          document.getElementById('stat-hue').textContent = raw.hueAngle + '°';
+          document.getElementById('stat-chroma').textContent = raw.chroma;
+          statsEl.style.display = 'flex';
+
+          // 低信心度警告（光線/濾鏡導致膚色失真時誠實告知）
+          let warnEl = document.getElementById('ui-verdict-warning');
+          if (raw.warning) {
+            if (!warnEl) {
+              warnEl = document.createElement('div');
+              warnEl.id = 'ui-verdict-warning';
+              warnEl.style.cssText = 'margin-top:14px; padding:10px 14px; border-radius:12px; background:rgba(230,170,80,0.12); border:1px solid rgba(230,170,80,0.35); font-size:13px; line-height:1.7; color:#8A6420;';
+              statsEl.parentNode.appendChild(warnEl);
+            }
+            warnEl.textContent = '⚠ ' + raw.warning;
+            warnEl.style.display = 'block';
+          } else if (warnEl) {
+            warnEl.style.display = 'none';
+          }
+        } else {
+          statsEl.style.display = 'none';
+        }
+      } catch (e) { statsEl.style.display = 'none'; }
+
+      // NG 地雷色
+      document.getElementById('ui-ng-colors').innerHTML = extras.ng.map(c => `
+        <div class="ng-swatch-wrapper">
+          <div class="ng-swatch" style="background-color: ${c.hex}; ${c.hex === '#FFFFFF' ? 'border-color: rgba(0,0,0,0.1);' : ''}"></div>
+          <span class="ng-name">${c.name}</span>
+        </div>
+      `).join('');
+
+      // 本人照片 + 膚色色票
+      const photo = localStorage.getItem('userCapturedPhoto');
+      const wrap = document.getElementById('ui-photo-wrap');
+      if (photo) {
+        document.getElementById('ui-photo').src = photo;
+        wrap.style.display = 'block';
+        if (measured && measured.skinHex) {
+          document.getElementById('ui-skin-dot').style.backgroundColor = measured.skinHex;
+          document.getElementById('ui-skin-hex').textContent = measured.skinHex.toUpperCase();
+          document.getElementById('ui-photo-ring').style.borderColor = measured.skinHex;
+        } else {
+          document.querySelector('.skin-chip').style.display = 'none';
+        }
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+
+    // ♡ 收藏色票到帳戶（需登入；資料存進 favorite_colors 資料表）
+    function favColor(hex, name, btn) {
+      const form = new FormData();
+      form.append('action', 'add');
+      form.append('hex', hex);
+      form.append('name', name);
+      fetch('api_favorites.php', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(res => {
+          const toast = document.getElementById('copy-toast');
+          if (res.success) {
+            if (btn) { btn.textContent = '♥'; btn.style.color = '#E36875'; }
+            toast.textContent = res.added ? '♥ 已收藏到我的帳戶' : '這個顏色已在收藏裡了';
+          } else {
+            toast.textContent = res.message || '收藏失敗，請先登入';
+          }
+          toast.classList.add('show');
+          clearTimeout(window._toastTimer);
+          window._toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+        })
+        .catch(() => {
+          const toast = document.getElementById('copy-toast');
+          toast.textContent = '收藏功能需在 XAMPP 環境並登入後使用';
+          toast.classList.add('show');
+          clearTimeout(window._toastTimer);
+          window._toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+        });
+    }
+
+    /* ===== 12 型命定色環：一眼看出自己落在色彩地圖的哪個位置 ===== */
+    function renderTypeRing(typeId) {
+      const order = ["light-spring","warm-spring","bright-spring","light-summer","cool-summer","soft-summer","soft-autumn","warm-autumn","deep-autumn","bright-winter","cool-winter","deep-winter"];
+      const fills = { spring: "#F0C4AE", summer: "#B7CDC7", autumn: "#DDB68C", winter: "#A9B6CB" };
+      const actives = { spring: "#E8907C", summer: "#6E9C90", autumn: "#C4813F", winter: "#5F7599" };
+      const zhShort = { "light-spring":"亮春","warm-spring":"暖春","bright-spring":"豔春","light-summer":"亮夏","cool-summer":"冷夏","soft-summer":"柔夏","soft-autumn":"柔秋","warm-autumn":"暖秋","deep-autumn":"深秋","bright-winter":"豔冬","cool-winter":"冷冬","deep-winter":"深冬" };
+
+      const C = 110, rIn = 62, rOut = 92, rActive = 102;
+      const pol = (r, deg) => {
+        const a = (deg - 90) * Math.PI / 180;
+        return [C + r * Math.cos(a), C + r * Math.sin(a)];
+      };
+      const seg = (i, r2) => {
+        const a0 = i * 30 + 1.5, a1 = (i + 1) * 30 - 1.5;
+        const [x0, y0] = pol(r2, a0), [x1, y1] = pol(r2, a1);
+        const [x2, y2] = pol(rIn, a1), [x3, y3] = pol(rIn, a0);
+        return `M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r2} ${r2} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x2.toFixed(1)} ${y2.toFixed(1)} A ${rIn} ${rIn} 0 0 0 ${x3.toFixed(1)} ${y3.toFixed(1)} Z`;
+      };
+
+      let svg = `<svg viewBox="0 0 220 220" style="width:220px; height:220px;" xmlns="http://www.w3.org/2000/svg">`;
+      order.forEach((t, i) => {
+        const season = t.split('-')[1];
+        const active = t === typeId;
+        const midDeg = i * 30 + 15;
+        const [lx, ly] = pol((rIn + (active ? rActive : rOut)) / 2, midDeg);
+        svg += `<path d="${seg(i, active ? rActive : rOut)}"
+                  fill="${active ? actives[season] : fills[season]}" opacity="${active ? 1 : 0.45}"
+                  ${active ? 'stroke="#fff" stroke-width="2.5"' : ''}/>`;
+        svg += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
+                  font-size="${active ? 12 : 9.5}" fill="${active ? '#fff' : 'rgba(60,55,50,0.65)'}"
+                  ${active ? 'font-weight="700"' : ''}>${zhShort[t]}</text>`;
+      });
+      const season = typeId.split('-')[1];
+      svg += `<circle cx="${C}" cy="${C}" r="${rIn - 10}" fill="rgba(255,255,255,0.85)"/>`;
+      svg += `<text x="${C}" y="${C - 8}" text-anchor="middle" font-size="17" font-weight="700" fill="${actives[season]}">${(apiDataMock[typeId] && apiDataMock[typeId].title) || ''}</text>`;
+      svg += `<text x="${C}" y="${C + 13}" text-anchor="middle" font-size="9.5" letter-spacing="1.5" fill="rgba(60,55,50,0.55)">${(typeExtras[typeId] || {}).en || ''}</text>`;
+      svg += `</svg>`;
+      const ringEl = document.getElementById('ui-type-ring');
+      if (ringEl) ringEl.innerHTML = svg;
+    }
+
+    /* ===== 建議卡示意圖：用該類型的實際色票上色，比文字更直覺 ===== */
+    function recVisuals(typeId) {
+      const data = apiDataMock[typeId];
+      const ex = typeExtras[typeId];
+      if (!data || !ex) return;
+      const c = data.colors.map(x => x.hex);           // 最佳 5 色
+      const isWarmSeason = /spring|autumn/.test(typeId);
+      const metal = isWarmSeason ? '#E2BC7F' : '#CDD3DC';   // 金 / 銀
+      const metalDark = isWarmSeason ? '#B8935A' : '#9AA3B0';
+      const hairSet = isWarmSeason
+        ? ['#6B4A32', '#8B5E3C', '#A9764F']                 // 暖棕系
+        : ['#2E2B33', '#4A4550', '#6B5D66'];                // 冷黑棕系
+
+      // 01 服裝：上衣 + 下著 + 配色點
+      document.getElementById('ui-vis-outfit').innerHTML = `
+        <svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+          <path d="M38 22 L50 14 Q60 20 70 14 L82 22 L78 40 L72 37 L72 56 L48 56 L48 37 L42 40 Z" fill="${c[0]}" opacity="0.95"/>
+          <path d="M49 58 L71 58 L69 84 L62 84 L60 66 L58 84 L51 84 Z" fill="${c[1]}"/>
+          <circle cx="97" cy="30" r="7" fill="${c[2]}"/><circle cx="97" cy="48" r="7" fill="${c[3]}"/><circle cx="97" cy="66" r="7" fill="${c[4]}"/>
+        </svg>`;
+      // 02 彩妝：口紅 + 眼影盤
+      document.getElementById('ui-vis-makeup').innerHTML = `
+        <svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="46" width="14" height="30" rx="3" fill="#3A3A3C"/>
+          <rect x="31.5" y="40" width="11" height="10" rx="2" fill="${metalDark}"/>
+          <path d="M33 42 L41 42 L41 24 Q37 18 33 26 Z" fill="${c[2]}"/>
+          <rect x="58" y="30" width="38" height="40" rx="6" fill="#FFFFFF" stroke="rgba(0,0,0,0.08)"/>
+          <circle cx="68" cy="42" r="6" fill="${c[0]}"/><circle cx="86" cy="42" r="6" fill="${c[1]}"/>
+          <circle cx="68" cy="58" r="6" fill="${c[3]}"/><circle cx="86" cy="58" r="6" fill="${c[4]}"/>
+        </svg>`;
+      // 03 髮色：三束髮色樣本
+      document.getElementById('ui-vis-hair').innerHTML = `
+        <svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+          ${hairSet.map((h, i) => `
+            <path d="M${28 + i * 26} 16 Q${20 + i * 26} 45 ${28 + i * 26} 74 Q${36 + i * 26} 45 ${28 + i * 26} 16"
+                  fill="${h}"/>
+            <path d="M${28 + i * 26} 20 Q${24 + i * 26} 45 ${28 + i * 26} 70" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+          `).join('')}
+        </svg>`;
+      // 04 飾品：耳環 + 項鍊（金/銀依冷暖）
+      document.getElementById('ui-vis-acc').innerHTML = `
+        <svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="38" cy="40" r="14" fill="none" stroke="${metal}" stroke-width="4"/>
+          <circle cx="38" cy="24" r="3.5" fill="${metalDark}"/>
+          <path d="M62 24 Q80 58 98 24" fill="none" stroke="${metal}" stroke-width="3.5"/>
+          <circle cx="80" cy="44" r="5" fill="${c[0]}" stroke="${metalDark}" stroke-width="1.5"/>
+        </svg>`;
+    }
+
+    // 點擊色票複製色碼
+    function copyHex(hex) {
+      const done = () => {
+        const toast = document.getElementById('copy-toast');
+        toast.textContent = '已複製 ' + hex;
+        toast.classList.add('show');
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(hex).then(done).catch(done);
+      } else {
+        done();
+      }
+    }
+
+    const seasonMap = {
+      'light-spring':'spring','warm-spring':'spring','bright-spring':'spring',
+      'light-summer':'summer','cool-summer':'summer','soft-summer':'summer',
+      'soft-autumn':'autumn','warm-autumn':'autumn','deep-autumn':'autumn',
+      'bright-winter':'winter','cool-winter':'winter','deep-winter':'winter',
+    };
+    const _origRender = renderResult;
+    // 注意：這裡必須用「賦值」而非 function 宣告，
+    // 否則宣告會被 hoisting 提前生效，_origRender 會抓到新函式自己 → 無限遞迴
+    renderResult = function(typeId, isNewTest = false) {
+      _origRender(typeId);
+      
+      // 儲存使用者的命定色結果到 localStorage，讓 newaccount.html 可以讀取
+      localStorage.setItem('userColorType', typeId);
+
+      if(isNewTest && apiDataMock[typeId]) {
+        const today = new Date();
+        const dateString = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+        
+        let savedHistory = JSON.parse(localStorage.getItem('appColorHistory') || '[]');
+        savedHistory.unshift({ date: dateString, title: apiDataMock[typeId].title });
+        if(savedHistory.length > 10) savedHistory.pop();
+        localStorage.setItem('appColorHistory', JSON.stringify(savedHistory));
+      }
+      
+      const sk = seasonMap[typeId] || 'default';
+      document.body.dataset.season = sk;
+      if(window.ThreeBG) ThreeBG.setSeason(sk);
+    };
+  </script>
+  <!-- 現代版面：已移除粒子背景 -->
+</body>
+</html>
+

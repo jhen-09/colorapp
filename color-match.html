@@ -1,0 +1,329 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>顏色搭配推薦 - 個人色彩鑑定 App</title>
+  <meta name="description" content="依據您的命定色季節，獲得專屬的色彩搭配方案與穿搭靈感">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <style>
+    /* ── 頁面佈局 ── */
+    .match-page { width: 100%; max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* ── 季節切換 Tab ── */
+    .season-tabs {
+      display: flex; gap: 10px; justify-content: center; margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+    .season-tab {
+      padding: 10px 24px; border-radius: 100px; font-size: 13px;
+      letter-spacing: 0.15em; font-weight: 500; cursor: pointer;
+      border: 1.5px solid transparent; transition: all 0.3s ease;
+      font-family: 'Noto Serif TC', serif;
+    }
+    .season-tab.active, .season-tab:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .tab-spring  { background: rgba(242,132,130,0.12); color: #c05050; border-color: rgba(242,132,130,0.35); }
+    .tab-spring.active  { background: rgba(242,132,130,0.9); color: #fff; }
+    .tab-summer  { background: rgba(132,165,157,0.12); color: #3a7a72; border-color: rgba(132,165,157,0.35); }
+    .tab-summer.active  { background: rgba(132,165,157,0.9); color: #fff; }
+    .tab-autumn  { background: rgba(246,189,96,0.15); color: #9a6010; border-color: rgba(246,189,96,0.4); }
+    .tab-autumn.active  { background: rgba(200,130,60,0.85); color: #fff; }
+    .tab-winter  { background: rgba(74,93,138,0.1); color: #3a4a78; border-color: rgba(74,93,138,0.3); }
+    .tab-winter.active  { background: rgba(74,93,138,0.85); color: #fff; }
+
+    /* ── 三色組合卡 ── */
+    .combos-grid {
+      display: grid; grid-template-columns: 1fr;
+      gap: 24px; margin-bottom: 40px;
+    }
+    @media(min-width: 640px) { .combos-grid { grid-template-columns: 1fr 1fr; } }
+    @media(min-width: 900px) { .combos-grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+    .combo-card {
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 20px; padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative; overflow: hidden;
+    }
+    .combo-card:hover { transform: translateY(-8px); box-shadow: 0 16px 40px rgba(0,0,0,0.1); }
+    .combo-card::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.5), transparent);
+      transform: skewX(-20deg); transition: 0s; pointer-events: none;
+    }
+    .combo-card:hover::before { left: 200%; transition: 0.9s ease-in-out; }
+
+    .combo-swatches {
+      display: flex; gap: 10px; margin-bottom: 18px;
+      align-items: flex-end;
+    }
+    .swatch-ball {
+      border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.9);
+      position: relative; flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15),
+        inset 0 -3px 6px rgba(0,0,0,0.12),
+        inset 0 3px 8px rgba(255,255,255,0.4);
+      transition: all 0.3s ease;
+    }
+    .swatch-ball::before {
+      content: ''; position: absolute;
+      top: 16%; left: 18%; width: 36%; height: 30%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, transparent 80%);
+      border-radius: 50%;
+    }
+    .swatch-ball:nth-child(1) { width: 44px; height: 44px; }
+    .swatch-ball:nth-child(2) { width: 56px; height: 56px; }
+    .swatch-ball:nth-child(3) { width: 44px; height: 44px; }
+    .combo-card:hover .swatch-ball:nth-child(2) { transform: translateY(-6px) scale(1.1); }
+
+    .combo-label {
+      font-size: 14px; font-weight: 600; color: var(--text-dark);
+      letter-spacing: 0.1em; margin-bottom: 8px;
+      font-family: 'Noto Serif TC', serif;
+    }
+    .combo-desc {
+      font-size: 13px; color: var(--text-muted);
+      line-height: 1.8; letter-spacing: 0.05em;
+    }
+    .combo-tag {
+      display: inline-block; margin-top: 12px;
+      padding: 4px 12px; border-radius: 100px;
+      font-size: 11px; letter-spacing: 0.12em;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(255,255,255,0.6);
+      color: var(--text-muted);
+    }
+
+    /* ── 穿搭原則區 ── */
+    .principles-section { margin-top: 12px; }
+    .principles-title {
+      font-size: 20px; color: var(--text-dark); font-weight: 500;
+      letter-spacing: 0.15em; margin-bottom: 20px; text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+    }
+    .principle-list { display: flex; flex-direction: column; gap: 14px; }
+    .principle-item {
+      display: flex; align-items: flex-start; gap: 16px;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 16px; padding: 18px 20px;
+      transition: all 0.3s ease;
+    }
+    .principle-item:hover { transform: translateX(6px); background: rgba(255,255,255,0.9); }
+    .principle-dot {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 16px; border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .principle-text { flex: 1; }
+    .principle-text strong { display: block; font-size: 14px; color: var(--text-dark); margin-bottom: 4px; }
+    .principle-text span { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+  </style>
+</head>
+<body data-season="spring">
+
+  <button class="fixed-hamburger mobile-ui-only" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="sidebar-overlay mobile-ui-only" id="sidebarOverlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar mobile-ui-only" id="sidebar">
+    <div class="sidebar-header">
+      <h2>功能選單</h2>
+      <button class="close-btn" onclick="toggleMenu()">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="index.html#main-app">首頁</a></li>
+      <li><a href="destiny-color.html">我的命定色</a></li>
+      <li><a href="makeup-tryon.html">線上試妝</a></li>
+      <li><a href="color-match.html" class="active">顏色搭配推薦</a></li>
+      <li><a href="hair-color.html">髮色推薦</a></li>
+      <li><a href="newlogin.html">我的帳戶</a></li>
+    </ul>
+  </aside>
+
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo">色彩鑑定</div>
+      <nav class="desktop-nav desktop-ui-only">
+        <a href="index.html#main-app">首頁</a>
+        <a href="destiny-color.html">我的命定色</a>
+        <a href="makeup-tryon.html">線上試妝</a>
+        <a href="color-match.html" class="active">顏色搭配推薦</a>
+        <a href="hair-color.html">髮色推薦</a>
+        <a href="newlogin.html">我的帳戶</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="match-page">
+    <a href="index.html#main-app" class="back-btn fade-in delay-1">
+      <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path></svg>
+      返回首頁
+    </a>
+
+    <h1 class="page-title fade-in delay-1" style="font-size:clamp(26px,6vw,36px);margin-bottom:12px;">顏色搭配推薦</h1>
+    <p style="text-align:center;color:var(--text-muted);font-size:14px;letter-spacing:0.08em;margin-bottom:32px;" class="fade-in delay-2">依據您的命定色季節，探索最佳色彩組合</p>
+
+    <!-- 季節 Tab -->
+    <div class="season-tabs fade-in delay-2">
+      <button class="season-tab tab-spring active" onclick="switchSeason('spring')">🌷 春季型</button>
+      <button class="season-tab tab-summer" onclick="switchSeason('summer')">🌸 夏季型</button>
+      <button class="season-tab tab-autumn" onclick="switchSeason('autumn')">🍁 秋季型</button>
+      <button class="season-tab tab-winter" onclick="switchSeason('winter')">❄️ 冬季型</button>
+    </div>
+
+    <!-- 色彩組合卡 -->
+    <div class="combos-grid fade-in delay-3" id="combosGrid"></div>
+
+    <!-- 穿搭原則 -->
+    <div class="principles-section fade-in delay-4" id="principlesSection"></div>
+  </main>
+
+  <footer class="main-footer">
+    &copy; 2026 色彩鑑定. All Rights Reserved.
+  </footer>
+
+  <script>
+    function toggleMenu() {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    const DATA = {
+      spring: {
+        combos: [
+          { label: '蜜桃初戀', desc: '主色搭配珊瑚橘與奶油白，清新活潑充滿春日氣息。', tag: '日常 / 甜美', colors: ['#FFC5B3','#FA9F7A','#FDF4CD'] },
+          { label: '花田漫步', desc: '鮮奶油底色搭配嫩粉與嫩黃，像走進春天花田的溫柔感。', tag: '優雅 / 度假', colors: ['#FDF4CD','#F7D060','#FFC5B3'] },
+          { label: '暖陽馬卡龍', desc: '薄荷綠 × 鵝黃 × 桃粉，對比清甜不刺眼，最適合踏青穿搭。', tag: '戶外 / 清甜', colors: ['#A8E6CF','#FFF1B0','#F18A9E'] },
+          { label: '珊瑚海岸', desc: '珊瑚橘 × 暖金 × 象牙白，富有暖意的夏季度假氣息。', tag: '度假 / 活力', colors: ['#FA9F7A','#F7D060','#FDFBF7'] },
+          { label: '春日甜橙', desc: '活力橘 × 陽光綠 × 奶油，高飽和對比展現豔春型的光芒。', tag: '豔麗 / 對比', colors: ['#FF9F43','#B4D661','#FDF4CD'] },
+          { label: '霧粉浪漫', desc: '蜜桃粉 × 嬰兒藍 × 檸檬黃，三色明度相近且帶透亮感。', tag: '韓系 / 少女', colors: ['#FFC5B3','#BBE5F1','#FFF1B0'] },
+        ],
+        principles: [
+          { icon: '☀️', color: '#FFC5B3', title: '擁抱暖色調', desc: '選擇黃色基調明顯的色彩，避免帶灰或冷藍調的顏色。' },
+          { icon: '💡', color: '#F7D060', title: '明度要輕盈', desc: '選用明度高、飽和度中等的色彩，過暗的顏色會顯沉悶。' },
+          { icon: '🌿', color: '#A8E6CF', title: '避免灰調莫蘭迪', desc: '灰調色彩會讓春季型顯得暗沉，需選擇乾淨通透的色彩。' },
+        ],
+      },
+      summer: {
+        combos: [
+          { label: '冷霧晨光', desc: '天藍 × 冰粉紅 × 淡灰，純粹冷調讓膚色白皙透亮。', tag: '日常 / 清冷', colors: ['#7EB6FF','#F0BEE3','#E2E8F0'] },
+          { label: '薰衣草田', desc: '粉紫 × 丁香紫 × 柔綠，夢幻浪漫的法式田園感。', tag: '浪漫 / 歐式', colors: ['#E0BBE4','#BEA9DE','#C3ECD0'] },
+          { label: '莫蘭迪知性', desc: '煙灰粉 × 莫蘭迪藍 × 霧紫，知性高冷的法式質感穿搭。', tag: '高知性 / OL', colors: ['#CCACB1','#8E9EAB','#9D96A8'] },
+          { label: '冰河藍調', desc: '薄荷藍 × 冷鋼灰 × 嬰兒藍，極致清冷的夏季冰感。', tag: '清爽 / 夏日', colors: ['#9CE1D9','#AAB2BD','#ADD8E6'] },
+          { label: '霧粉迷情', desc: '石竹粉 × 粉紫 × 淡灰，輕盈柔和的亮夏型最佳日常選擇。', tag: '柔美 / 淡雅', colors: ['#F5C6D6','#E0BBE4','#E2E8F0'] },
+          { label: '鼠尾草林', desc: '鼠尾草綠 × 煙灰粉 × 灰褐，低飽和的自然有機系穿搭。', tag: '自然 / 有機', colors: ['#9EAF9B','#CCACB1','#A2999E'] },
+        ],
+        principles: [
+          { icon: '❄️', color: '#7EB6FF', title: '堅守冷色調', desc: '任何帶黃調的顏色都會讓夏季型顯蠟黃，需嚴格避免。' },
+          { icon: '🌫️', color: '#9D96A8', title: '灰調你的好朋友', desc: '帶灰或帶粉的莫蘭迪色系非常適合夏季型，高級感十足。' },
+          { icon: '🚫', color: '#E2E8F0', title: '避免過強對比', desc: '過強的黑白對比或高飽和色會讓柔夏型顯得突兀。' },
+        ],
+      },
+      autumn: {
+        combos: [
+          { label: '落葉秋林', desc: '楓葉紅 × 深橄欖 × 落葉棕，最經典的暖秋型大地色搭配。', tag: '大地 / 經典', colors: ['#B45B4B','#7A8143','#896043'] },
+          { label: '咖啡莊園', desc: '巧克力棕 × 焦糖棕 × 芥末黃，深邃有氣場的秋日職場感。', tag: '職場 / 沉穩', colors: ['#5B3C31','#975A28','#D7A643'] },
+          { label: '鐵鏽工業', desc: '鐵鏽橘 × 落葉棕 × 深茶色，帶濃郁戶外感的中性穿搭。', tag: '中性 / 工裝', colors: ['#B9663B','#896043','#4D4139'] },
+          { label: '深林探索', desc: '森林綠 × 深酒紅 × 巧克力，飽和深色的神秘叢林感。', tag: '神秘 / 戶外', colors: ['#385E3A','#6A2C31','#5B3C31'] },
+          { label: '藕荷秋意', desc: '藕荷色 × 卡其色 × 橄欖褐，柔秋型的溫柔大地色搭配。', tag: '柔和 / 文藝', colors: ['#C4B1A7','#C2B280','#9F9A7B'] },
+          { label: '夕陽暖橘', desc: '芥末黃 × 鐵鏽橘 × 楓葉紅，彷彿夕陽餘暉的暖意漸層。', tag: '暖意 / 活力', colors: ['#D7A643','#B9663B','#B45B4B'] },
+        ],
+        principles: [
+          { icon: '🍂', color: '#B45B4B', title: '擁抱大地棕', desc: '深邃、濃郁的暖棕色系是秋季型的最佳夥伴，能展現氣場。' },
+          { icon: '🌿', color: '#7A8143', title: '橄欖綠是靈魂色', desc: '橄欖綠與深橄欖是秋季型的核心顏色，百搭且具個性。' },
+          { icon: '🚫', color: '#E2E8F0', title: '避免冷調粉色', desc: '帶藍、帶灰的粉色會讓秋季型顯得無血色、蒼白。' },
+        ],
+      },
+      winter: {
+        combos: [
+          { label: '曜石極夜', desc: '耀眼黑 × 皇家藍 × 純白，最具衝擊力的冬日對比穿搭。', tag: '時尚 / 對比', colors: ['#1A1A1A','#2752E1','#FFFFFF'] },
+          { label: '冰川藍白', desc: '純白 × 銀 × 寶石藍，極致冰冷的北歐極光感穿搭。', tag: '北歐 / 極光', colors: ['#FFFFFF','#B8C0C8','#1A4EB1'] },
+          { label: '酒紅迷夜', desc: '勃根地紅 × 深紫 × 碳灰，深邃神秘的夜晚女王感。', tag: '神秘 / 高貴', colors: ['#4D0014','#28112F','#26292C'] },
+          { label: '透翠冷豔', desc: '正冰紅 × 透翠綠 × 曜石黑，豔冬型高飽和對比的最強穿搭。', tag: '豔麗 / 前衛', colors: ['#E32148','#08B46C','#1A1A1A'] },
+          { label: '墨綠深夜', desc: '墨綠 × 深藍 × 碳灰，深冬型最能展現氣場的低明度組合。', tag: '氣場 / 深邃', colors: ['#0E291C','#101639','#26292C'] },
+          { label: '冷紫銀光', desc: '正紫 × 銀 × 純白，冷冬型的紫白對比充滿仙氣。', tag: '仙氣 / 前衛', colors: ['#7D2894','#B8C0C8','#FFFFFF'] },
+        ],
+        principles: [
+          { icon: '🖤', color: '#1A1A1A', title: '善用黑白對比', desc: '黑白是冬季型的天菜，高對比穿搭能讓五官更立體。' },
+          { icon: '💎', color: '#2752E1', title: '選飽和冷色', desc: '皇家藍、正紫、冰紅等高飽和冷色能讓冬季型光彩奪目。' },
+          { icon: '🚫', color: '#D7A643', title: '遠離暖黃大地色', desc: '任何帶黃調的暖色都是冬季型的地雷，會讓臉色蠟黃。' },
+        ],
+      },
+    };
+
+    let currentSeason = 'spring';
+
+    function switchSeason(season) {
+      currentSeason = season;
+      // 更新 tab
+      document.querySelectorAll('.season-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab-${season}`).classList.add('active');
+
+      // 更新 Three.js 粒子
+      document.body.dataset.season = season;
+      if (window.ThreeBG) ThreeBG.setSeason(season);
+
+      renderCombos(season);
+      renderPrinciples(season);
+    }
+
+    function renderCombos(season) {
+      const grid = document.getElementById('combosGrid');
+      const d = DATA[season];
+      grid.style.opacity = 0;
+      setTimeout(() => {
+        grid.innerHTML = d.combos.map(c => `
+          <div class="combo-card">
+            <div class="combo-swatches">
+              ${c.colors.map(hex => `<div class="swatch-ball" style="background:${hex}"></div>`).join('')}
+            </div>
+            <div class="combo-label">${c.label}</div>
+            <div class="combo-desc">${c.desc}</div>
+            <span class="combo-tag">${c.tag}</span>
+          </div>
+        `).join('');
+        grid.style.transition = 'opacity 0.4s';
+        grid.style.opacity = 1;
+      }, 180);
+    }
+
+    function renderPrinciples(season) {
+      const sec = document.getElementById('principlesSection');
+      const d = DATA[season];
+      sec.innerHTML = `
+        <h2 class="principles-title">✦ 穿搭核心原則 ✦</h2>
+        <div class="principle-list">
+          ${d.principles.map(p => `
+            <div class="principle-item">
+              <div class="principle-dot" style="background:${p.color}">${p.icon}</div>
+              <div class="principle-text">
+                <strong>${p.title}</strong>
+                <span>${p.desc}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // 初始化
+    renderCombos('spring');
+    renderPrinciples('spring');
+  </script>
+  <script src="js/three-bg.js"></script>
+</body>
+</html>
+
